@@ -11,8 +11,10 @@ import type { ClientServicePackage } from '@/shared/api/types'
 import { formatMoney } from '@/shared/lib/format'
 import { getPackageShortTitle } from './lib'
 
-function categoryIcon(code: string): keyof typeof Ionicons.glyphMap {
-  const c = code.toLowerCase()
+function categoryIcon(code?: string): keyof typeof Ionicons.glyphMap {
+  // Пакет без категории (service_package из произвольных товаров/услуг)
+  // приходит с category: null — иконку берём generic-шестерёнку.
+  const c = (code ?? '').toLowerCase()
   if (c.includes('oil')) return 'water-outline'
   if (c.includes('brake')) return 'disc-outline'
   if (c.includes('tire') || c.includes('wheel')) return 'ellipse-outline'
@@ -29,7 +31,7 @@ export function ServiceCard({ pkg }: { pkg: ClientServicePackage }) {
     <View className="rounded-sct border border-borderLight bg-white p-5">
       <Pressable onPress={() => router.push(`/services/${pkg.id}`)}>
         <View className="mb-4 h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-          <Ionicons name={categoryIcon(pkg.category.code)} size={22} color="#1F5FAF" />
+          <Ionicons name={categoryIcon(pkg.category?.code)} size={22} color="#1F5FAF" />
         </View>
         <Text
           style={{ fontFamily: 'Inter_900Black' }}
