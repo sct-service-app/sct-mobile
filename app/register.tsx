@@ -86,6 +86,7 @@ function RegisterFormStep({
 }) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     control,
@@ -96,6 +97,15 @@ function RegisterFormStep({
     resolver: zodResolver(registerSchema),
     defaultValues: { full_name: '', phone: '', password: '', password_confirm: '' },
   })
+
+  // Общая кнопка «показать/скрыть» для обоих полей пароля (как на экране входа).
+  const passwordToggle = (
+    <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+      <Text className="text-[11px] uppercase tracking-widest text-brandBlue">
+        {showPassword ? 'Скрыть' : 'Показать'}
+      </Text>
+    </Pressable>
+  )
 
   const onSubmit = async (values: RegisterFormValues) => {
     setServerError(null)
@@ -160,11 +170,12 @@ function RegisterFormStep({
           <Input
             label="Пароль"
             placeholder="Минимум 8 символов"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={errors.password?.message}
+            rightSlot={passwordToggle}
           />
         )}
       />
@@ -176,11 +187,12 @@ function RegisterFormStep({
           <Input
             label="Подтвердите пароль"
             placeholder="Повторите пароль"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={errors.password_confirm?.message}
+            rightSlot={passwordToggle}
           />
         )}
       />

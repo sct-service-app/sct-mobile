@@ -151,6 +151,14 @@ function PhoneStep({ onSuccess }: { onSuccess: (normalizedPhone: string) => void
 // === Шаг 2: код + новый пароль ===
 function ResetStep({ phone, onSuccess }: { phone: string; onSuccess: () => void }) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const passwordToggle = (
+    <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+      <Text className="text-[11px] uppercase tracking-widest text-brandBlue">
+        {showPassword ? 'Скрыть' : 'Показать'}
+      </Text>
+    </Pressable>
+  )
   const {
     control,
     handleSubmit,
@@ -210,12 +218,13 @@ function ResetStep({ phone, onSuccess }: { phone: string; onSuccess: () => void 
         render={({ field }) => (
           <Input
             label="Новый пароль"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             hint="Минимум 8 символов, буква и цифра"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={errors.password?.message}
+            rightSlot={passwordToggle}
           />
         )}
       />
@@ -225,11 +234,12 @@ function ResetStep({ phone, onSuccess }: { phone: string; onSuccess: () => void 
         render={({ field }) => (
           <Input
             label="Повторите новый пароль"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={errors.password_confirm?.message}
+            rightSlot={passwordToggle}
           />
         )}
       />
