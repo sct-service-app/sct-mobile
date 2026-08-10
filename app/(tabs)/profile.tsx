@@ -19,7 +19,12 @@ import { RequireAuth } from '@/shared/ui/RequireAuth'
 import { Card } from '@/shared/ui/Card'
 import { Toggle } from '@/shared/ui/Toggle'
 import { Button } from '@/shared/ui/Button'
+import { Input } from '@/shared/ui/Input'
+import { Modal } from '@/shared/ui/Modal'
+import { toast } from '@/shared/ui/Toast'
 import { useAuthStore } from '@/features/auth/store'
+import { deleteClientAccount } from '@/features/auth/api'
+import { parseApiError } from '@/features/auth/errors'
 import { useAppLockStore } from '@/features/app-lock/store'
 import { isBiometricAvailable } from '@/features/app-lock/biometrics'
 import * as appLockStorage from '@/features/app-lock/storage'
@@ -55,6 +60,32 @@ function Profile() {
   const lockEnabled = useAppLockStore((s) => s.enabled)
   const biometricEnabled = useAppLockStore((s) => s.biometricEnabled)
   const [bioAvailable, setBioAvailable] = useState(false)
+
+  // Удаление аккаунта (требование сторов).
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Введите пароль для подтверждения')
+      return
+    }
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      await deleteClientAccount(deletePassword)
+      setDeleteOpen(false)
+      logout()
+      toast.success('Аккаунт удалён')
+      router.replace('/')
+    } catch (err) {
+      setDeleteError(parseApiError(err, 'Не удалось удалить аккаунт. Проверьте пароль.').general)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     void isBiometricAvailable().then(setBioAvailable)
@@ -162,6 +193,47 @@ function Profile() {
       <Button variant="danger" fullWidth size="lg" onPress={handleLogout}>
         Выйти из системы
       </Button>
+
+      <Button
+        variant="ghost"
+        fullWidth
+        onPress={() => {
+          setDeleteError(null)
+          setDeletePassword('')
+          setDeleteOpen(true)
+        }}
+      >
+        Удалить аккаунт
+      </Button>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => {
+          if (!deleting) setDeleteOpen(false)
+        }}
+        title="Удалить аккаунт"
+      >
+        <Text className="text-sm text-textSecondary">
+          Это действие необратимо. Активные записи будут отменены, автомобили —
+          заархивированы, а персональные данные удалены. Войти в этот аккаунт больше
+          нельзя.
+        </Text>
+        <View className="mt-4 gap-3">
+          <Input
+            label="Введите пароль для подтверждения"
+            secureTextEntry
+            value={deletePassword}
+            onChangeText={setDeletePassword}
+            error={deleteError ?? undefined}
+          />
+          <Button variant="danger" fullWidth loading={deleting} onPress={handleDeleteAccount}>
+            Удалить аккаунт
+          </Button>
+          <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(false)}>
+            Отмена
+          </Button>
+        </View>
+      </Modal>
     </ScrollView>
   )
 }

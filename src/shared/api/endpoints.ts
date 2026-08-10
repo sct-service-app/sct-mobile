@@ -15,6 +15,7 @@ export const endpoints = {
   clientRegisterResend: '/api/v1/client_endpoints/auth/register/resend/',
   clientRefresh: '/api/v1/client_endpoints/auth/refresh/',
   clientProfile: '/api/v1/client_endpoints/auth/profile/',
+  clientDeleteAccount: '/api/v1/client_endpoints/auth/delete-account/',
 
   // --- Клиент: восстановление пароля по SMS ---
   clientPasswordResetRequest: '/api/v1/client_endpoints/auth/password-reset/request/',

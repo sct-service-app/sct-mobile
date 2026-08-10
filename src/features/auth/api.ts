@@ -4,6 +4,7 @@
  */
 import { http, noAuth } from '@/shared/api/http'
 import { endpoints } from '@/shared/api/endpoints'
+import { tokenStorage } from '@/shared/api/token-storage'
 import type {
   ClientLoginRequest,
   ClientProfile,
@@ -88,5 +89,20 @@ export async function updateClientProfile(
   }>,
 ) {
   const response = await http.patch<ClientProfile>(endpoints.clientProfile, payload)
+  return response.data
+}
+
+/**
+ * Удаление аккаунта клиента (требование Google Play / App Store).
+ * Бэк подтверждает пароль, отменяет активные записи, архивирует авто и
+ * анонимизирует персональные данные. Тело: { password, confirmation:"DELETE",
+ * refresh }. После успеха вызывающий код обязан разлогинить пользователя.
+ */
+export async function deleteClientAccount(password: string) {
+  const response = await http.request<{ deleted?: boolean }>({
+    url: endpoints.clientDeleteAccount,
+    method: 'DELETE',
+    data: { password, confirmation: 'DELETE', refresh: tokenStorage.getRefresh() },
+  })
   return response.data
 }
