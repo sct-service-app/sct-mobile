@@ -13,8 +13,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "kz.sct.mobile"
+      "supportsTablet": false,
+      "bundleIdentifier": "kz.sct.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "kz.sct.mobile",
