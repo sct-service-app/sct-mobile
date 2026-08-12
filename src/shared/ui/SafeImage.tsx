@@ -7,6 +7,7 @@
  */
 import { useState, type ReactNode } from 'react'
 import { Image, type ImageProps } from 'react-native'
+import { resolveMediaUrl } from '@/shared/lib/media'
 
 interface SafeImageProps extends Omit<ImageProps, 'source'> {
   uri?: string | null
@@ -16,12 +17,13 @@ interface SafeImageProps extends Omit<ImageProps, 'source'> {
 
 export function SafeImage({ uri, fallback, className, ...rest }: SafeImageProps) {
   const [failed, setFailed] = useState(false)
+  const resolved = resolveMediaUrl(uri)
 
-  if (!uri || failed) return <>{fallback ?? null}</>
+  if (!resolved || failed) return <>{fallback ?? null}</>
 
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: resolved }}
       onError={() => setFailed(true)}
       className={className}
       {...rest}
