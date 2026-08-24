@@ -49,6 +49,9 @@ export const endpoints = {
   serviceStation: (id: number) =>
     `/api/v1/client_endpoints/service_stations/${id}/`,
 
+  // --- Публичное: акция месяца для промо-баннера главной (без авторизации) ---
+  homePromotion: '/api/v1/public/home-promotion/',
+
   // --- Публичный конфигуратор авто (add_car / change) ---
   carsMarks: '/api/v1/cars/marks/',
   carsModels: '/api/v1/cars/models/',

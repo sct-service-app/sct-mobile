@@ -1,14 +1,15 @@
 /**
  * Промо-баннер главной — RN-порт features/home/HomePromoBanner.tsx.
- * Гость: оффер «−20% первое обслуживание». Авторизованный: акция месяца с
- * живым обратным отсчётом до конца месяца. Градиент веба → сплошной brandBlue.
+ * Гость: статичный оффер «−20% первое обслуживание» (не редактируется).
+ * Авторизованный: «акция месяца» — контент (лейбл, заголовок, описание,
+ * дедлайн таймера, тексты и ссылки кнопок) приходит с бэка и редактируется из
+ * админки: GET /api/v1/public/home-promotion/. Градиент веба → сплошной brandBlue.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { Linking, Pressable, Text, View } from 'react-native'
+import { useRouter, type Href } from 'expo-router'
 import { useAuthStore } from '@/features/auth/store'
-
-const PROMO_END_ISO = endOfCurrentMonthISO()
+import { useHomePromotionQuery } from './queries'
 
 export function HomePromoBanner() {
   const phase = useAuthStore((s) => s.phase)
@@ -41,6 +42,7 @@ function GuestPromoBanner() {
 
 function CountdownPromoBanner() {
   const router = useRouter()
+  const { data: promo } = useHomePromotionQuery()
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -48,8 +50,15 @@ function CountdownPromoBanner() {
     return () => clearInterval(id)
   }, [])
 
-  const diffMs = useMemo(() => new Date(PROMO_END_ISO).getTime() - now, [now])
-  if (diffMs <= 0) return null
+  const deadlineMs = useMemo(
+    () => (promo ? new Date(promo.deadline).getTime() : 0),
+    [promo],
+  )
+
+  // Нет активной акции (бэк отдал пусто / выключена / истекла / таймер вышел)
+  // — баннер просто не показываем, как и раньше со статикой при diff <= 0.
+  const diffMs = deadlineMs - now
+  if (!promo || !promo.is_active || promo.is_expired || diffMs <= 0) return null
 
   const totalSeconds = Math.floor(diffMs / 1000)
   const days = Math.floor(totalSeconds / 86400)
@@ -60,14 +69,14 @@ function CountdownPromoBanner() {
     <View className="overflow-hidden rounded-sct-lg bg-brandBlue p-6">
       <View className="self-start rounded-md bg-brandYellow px-2.5 py-1">
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-textPrimary">
-          Акция месяца
+          {promo.label}
         </Text>
       </View>
       <Text style={{ fontFamily: 'Inter_900Black' }} className="mt-3 text-2xl uppercase leading-tight text-white">
-        −20% на замену масла и фильтров
+        {promo.title}
       </Text>
       <Text className="mt-3 text-sm leading-relaxed text-white/80">
-        Для большинства авто доступен спец-пакет: масло, фильтр, диагностика и работа мастера.
+        {promo.description}
       </Text>
 
       <View className="mt-5 rounded-sct-lg border border-white/10 bg-navy/60 p-4">
@@ -84,19 +93,34 @@ function CountdownPromoBanner() {
       </View>
 
       <View className="mt-6 flex-row flex-wrap gap-3">
-        <Pressable onPress={() => router.push('/services')} className="rounded-sct bg-white px-5 py-3 active:opacity-90">
+        <Pressable onPress={() => openPromoUrl(router, promo.primary_button_url)} className="rounded-sct bg-white px-5 py-3 active:opacity-90">
           <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[11px] uppercase tracking-widest text-brandBlue">
-            Забронировать акцию
+            {promo.primary_button_text}
           </Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/services')} className="rounded-sct border border-white/20 bg-white/10 px-5 py-3 active:opacity-90">
+        <Pressable onPress={() => openPromoUrl(router, promo.secondary_button_url)} className="rounded-sct border border-white/20 bg-white/10 px-5 py-3 active:opacity-90">
           <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[11px] uppercase tracking-widest text-white">
-            Все акции
+            {promo.secondary_button_text}
           </Text>
         </Pressable>
       </View>
     </View>
   )
+}
+
+/**
+ * Кнопка промо ведёт либо на внутренний путь (напр. «/services») → router.push,
+ * либо на внешний абсолютный URL (http…) → Linking.openURL. Пустой путь фолбэчим
+ * на /services (как на вебе). Внутренние пути из админки не входят в
+ * типизированные маршруты expo-router, поэтому расширяющий каст.
+ */
+function openPromoUrl(router: ReturnType<typeof useRouter>, url: string) {
+  const target = url || '/services'
+  if (/^https?:\/\//i.test(target)) {
+    void Linking.openURL(target)
+    return
+  }
+  router.push(target as unknown as Href)
 }
 
 function CountUnit({ value, label }: { value: number; label: string }) {
@@ -114,9 +138,4 @@ function CountUnit({ value, label }: { value: number; label: string }) {
 
 function CountSep() {
   return <Text style={{ fontFamily: 'Inter_900Black' }} className="text-2xl text-white/30">:</Text>
-}
-
-function endOfCurrentMonthISO(): string {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0).toISOString()
 }
