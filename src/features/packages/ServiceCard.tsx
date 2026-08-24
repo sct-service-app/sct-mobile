@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import type { ClientServicePackage } from '@/shared/api/types'
 import { formatMoney } from '@/shared/lib/format'
+import { SafeImage } from '@/shared/ui/SafeImage'
 import { getPackageShortTitle } from './lib'
 
 function categoryIcon(code?: string): keyof typeof Ionicons.glyphMap {
@@ -30,8 +31,13 @@ export function ServiceCard({ pkg }: { pkg: ClientServicePackage }) {
   return (
     <View className="rounded-sct border border-borderLight bg-white p-5">
       <Pressable onPress={() => router.push(`/services/${pkg.id}`)}>
-        <View className="mb-4 h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-          <Ionicons name={categoryIcon(pkg.category?.code)} size={22} color="#1F5FAF" />
+        <View className="mb-4 h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-blue-50">
+          <SafeImage
+            uri={pkg.image_url}
+            resizeMode="cover"
+            className="h-full w-full"
+            fallback={<Ionicons name={categoryIcon(pkg.category?.code)} size={22} color="#1F5FAF" />}
+          />
         </View>
         <Text
           style={{ fontFamily: 'Inter_900Black' }}
