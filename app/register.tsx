@@ -159,6 +159,8 @@ function RegisterFormStep({
             value={field.value}
             onChange={field.onChange}
             error={errors.phone?.message}
+            textContentType="username"
+            autoComplete="username"
           />
         )}
       />
@@ -171,6 +173,8 @@ function RegisterFormStep({
             label="Пароль"
             placeholder="Минимум 8 символов"
             secureTextEntry={!showPassword}
+            textContentType="newPassword"
+            autoComplete="new-password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
@@ -188,6 +192,8 @@ function RegisterFormStep({
             label="Подтвердите пароль"
             placeholder="Повторите пароль"
             secureTextEntry={!showPassword}
+            textContentType="newPassword"
+            autoComplete="new-password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}

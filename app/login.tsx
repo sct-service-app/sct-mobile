@@ -87,6 +87,8 @@ export default function LoginScreen() {
             value={field.value}
             onChange={field.onChange}
             error={errors.phone?.message}
+            textContentType="username"
+            autoComplete="username"
           />
         )}
       />
@@ -99,6 +101,8 @@ export default function LoginScreen() {
             label="Пароль"
             placeholder="••••••••"
             secureTextEntry={!showPassword}
+            textContentType="password"
+            autoComplete="current-password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
