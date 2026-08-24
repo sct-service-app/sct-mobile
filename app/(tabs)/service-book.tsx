@@ -93,7 +93,7 @@ function ServiceBookInner() {
   return (
     <ScrollView className="flex-1 bg-surfaceLight" contentContainerStyle={{ padding: 16, gap: 16 }}>
       <CarHeroCompact car={data.selected_car} />
-      <RecommendationStrip recommendation={data.service_recommendations?.engine_oil} />
+      <RecommendationStrip recommendations={data.service_recommendations} />
       <BookServiceCTA />
       <MyGarageColumn />
 

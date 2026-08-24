@@ -7,6 +7,7 @@
 import { Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useServiceBookQuery } from '@/features/service-book/queries'
+import { findRecommendation, sortRecommendationsByUrgency } from '@/features/service-book/recommendations'
 import { Card } from '@/shared/ui/Card'
 import { Button } from '@/shared/ui/Button'
 import { SafeImage } from '@/shared/ui/SafeImage'
@@ -22,7 +23,16 @@ export function ActiveCarBlock() {
   const car = data?.selected_car
   if (!car) return null
 
-  const oil = data?.service_recommendations?.engine_oil
+  const recs = data?.service_recommendations?.recommendations
+  const engineOil = findRecommendation(recs, 'engine_oil')
+  const topRec = sortRecommendationsByUrgency(recs ?? [])[0]
+  const topRecMessage = topRec
+    ? topRec.is_due
+      ? `${topRec.title} — уже пора`
+      : topRec.remaining_mileage_km != null
+        ? `${topRec.title} — примерно через ${formatMileage(topRec.remaining_mileage_km)}`
+        : topRec.title
+    : null
   const next = data?.next_appointment
   const nextDt = next?.final_datetime ?? next?.scheduled_datetime ?? next?.preferred_datetime
   const title = car.full_car_title || car.display_name
@@ -69,16 +79,16 @@ export function ActiveCarBlock() {
           <SpecChip label="Пробег" value={hasMileage ? formatMileage(car.latest_mileage_km) : '—'} />
           <SpecChip
             label="Замена масла"
-            value={oil?.next_service_mileage_km != null ? formatMileage(oil.next_service_mileage_km) : '—'}
+            value={engineOil?.next_service_mileage_km != null ? formatMileage(engineOil.next_service_mileage_km) : '—'}
           />
           <SpecChip label="Ближайший визит" value={nextDt ? formatDateTime(nextDt) : 'Нет'} accent={Boolean(nextDt)} />
         </View>
 
-        {oil?.message ? (
+        {topRecMessage ? (
           <View className="mt-4 flex-row items-start gap-2 rounded-sct border-l-4 border-brandYellow bg-brandYellow/15 p-3">
             <Text className="text-base">⏳</Text>
             <Text style={{ fontFamily: 'Inter_700Bold' }} className="flex-1 text-[12px] uppercase text-textPrimary">
-              {oil.message}
+              {topRecMessage}
             </Text>
           </View>
         ) : null}

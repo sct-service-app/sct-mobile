@@ -198,24 +198,51 @@ export interface ServiceBookMeta {
 }
 
 /**
- * Рекомендация сервиса (бэк добавил 10.06). Сейчас единственная —
- * замена масла в ДВС: пробег последней замены + interval_km.
- * Блок приходит как service_recommendations.engine_oil в page-data.
+ * Рекомендации сервиса (формат сверен с вебом + live API 2026-08).
+ *
+ * Бэк перешёл со старого service_recommendations.engine_oil на набор в
+ * recommendations[] — по объекту на вид обслуживания (масло ДВС/АКПП, тормозная
+ * жидкость, антифриз…). `is_due=true` — уже пора; `remaining_mileage_km` —
+ * сколько осталось до следующего. У клиента без истории обслуживания список пуст.
  */
-export interface EngineOilRecommendation {
-  type: string
+export interface ServiceRecommendationCategory {
+  id: number
+  code: string
+  name: string
+  slug: string
+  icon: string
+  color: string
+}
+
+export interface ServiceRecommendationLastService {
+  appointment_id: number | null
+  status: string
+  service_title: string
+  service_date: string | null
+  mileage_km: number | null
+}
+
+export interface ServiceRecommendationInterval {
+  km: number | null
+  days: number | null
+}
+
+export interface ServiceRecommendationItem {
+  code: string
   title: string
-  /** Готовый текст: «Следующая замена масла в ДВС на 14000 км». */
-  message: string
-  category_id: number | null
-  interval_km: number | null
-  last_appointment_id: number | null
-  last_service_mileage_km: number | null
+  description: string
+  category: ServiceRecommendationCategory | null
+  last_service: ServiceRecommendationLastService | null
+  interval: ServiceRecommendationInterval | null
   next_service_mileage_km: number | null
+  current_mileage_km: number | null
+  remaining_mileage_km: number | null
+  is_due: boolean
 }
 
 export interface ServiceRecommendations {
-  engine_oil?: EngineOilRecommendation | null
+  latest_mileage_km: number | null
+  recommendations: ServiceRecommendationItem[]
 }
 
 export interface ServiceBookPageData {
