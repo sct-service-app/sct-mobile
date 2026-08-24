@@ -14,6 +14,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { Card } from '@/shared/ui/Card'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Button } from '@/shared/ui/Button'
+import { SafeImage } from '@/shared/ui/SafeImage'
 import type { ServiceStation } from '@/features/service-stations/types'
 
 function stationHours(station: ServiceStation): string | null {
@@ -76,21 +77,6 @@ export default function ContactsScreen() {
         </Text>
       </View>
 
-      <Card className="p-5">
-        <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
-          Единая справочная служба
-        </Text>
-        <Pressable onPress={() => Linking.openURL('tel:+77273334455')}>
-          <Text style={{ fontFamily: 'Inter_900Black' }} className="mt-1 text-2xl text-textPrimary">
-            +7 (727) 333-44-55
-          </Text>
-        </Pressable>
-        <View className="mt-3 flex-row flex-wrap gap-2">
-          <Tag>Служба заботы 24/7</Tag>
-          <Tag>Алматы</Tag>
-        </View>
-      </Card>
-
       {data.results.map((station) => (
         <StationCard key={station.id} station={station} />
       ))}
@@ -104,12 +90,21 @@ function StationCard({ station }: { station: ServiceStation }) {
 
   return (
     <Card className="p-5">
-      <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-brandBlue">
-        Сервис-центр
-      </Text>
-      <Text style={{ fontFamily: 'Inter_900Black' }} className="mt-1 text-lg uppercase text-textPrimary">
-        {station.name}
-      </Text>
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-brandBlue">
+            Сервис-центр
+          </Text>
+          <Text style={{ fontFamily: 'Inter_900Black' }} className="mt-1 text-lg uppercase text-textPrimary">
+            {station.name}
+          </Text>
+        </View>
+        {station.photo ? (
+          <View className="h-14 w-20 overflow-hidden rounded-lg border border-borderLight bg-surfaceLight">
+            <SafeImage uri={station.photo} resizeMode="cover" className="h-full w-full" />
+          </View>
+        ) : null}
+      </View>
 
       <View className="mt-4 gap-2.5">
         <Row icon="location-outline">
@@ -121,6 +116,13 @@ function StationCard({ station }: { station: ServiceStation }) {
           <Row icon="call-outline">
             <Pressable onPress={() => Linking.openURL(`tel:${station.phone!.replace(/[^+\d]/g, '')}`)}>
               <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-sm text-brandBlue">{station.phone}</Text>
+            </Pressable>
+          </Row>
+        ) : null}
+        {station.two_gis_url ? (
+          <Row icon="navigate-outline">
+            <Pressable onPress={() => Linking.openURL(station.two_gis_url!)}>
+              <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-sm text-brandBlue">Открыть в 2ГИС</Text>
             </Pressable>
           </Row>
         ) : null}
@@ -145,16 +147,6 @@ function Row({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; childre
     <View className="flex-row items-start gap-3">
       <Ionicons name={icon} size={16} color="#7A8694" style={{ marginTop: 2 }} />
       {children}
-    </View>
-  )
-}
-
-function Tag({ children }: { children: string }) {
-  return (
-    <View className="rounded-md bg-surfaceMuted px-3 py-1.5">
-      <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
-        {children}
-      </Text>
     </View>
   )
 }

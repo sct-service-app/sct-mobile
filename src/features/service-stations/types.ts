@@ -27,6 +27,10 @@ export interface ServiceStation {
   latitude: string | null
   longitude: string | null
   phone: string | null
+  /** Фото филиала (media-URL бэка, приходит по http → чинит resolveMediaUrl). */
+  photo: string | null
+  /** Ссылка на филиал в 2ГИС. Может отсутствовать/быть пустой — тогда не показываем. */
+  two_gis_url: string | null
   is_active: boolean
   schedule: StationScheduleDay[]
 }
