@@ -43,16 +43,20 @@ export default function PackageDetailScreen() {
 
   if (!isAuthed) {
     return (
-      <GuestPrompt
-        title="Услуга доступна после регистрации"
-        description="Чтобы увидеть состав пакета, цену и записаться на сервис, зарегистрируйтесь или войдите."
-      />
+      <View className="flex-1">
+        <Stack.Screen options={{ headerShown: true, title: 'Пакет' }} />
+        <GuestPrompt
+          title="Услуга доступна после регистрации"
+          description="Чтобы увидеть состав пакета, цену и записаться на сервис, зарегистрируйтесь или войдите."
+        />
+      </View>
     )
   }
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-surfaceLight">
+        <Stack.Screen options={{ headerShown: true, title: 'Пакет' }} />
         <Spinner />
       </View>
     )
@@ -61,6 +65,7 @@ export default function PackageDetailScreen() {
   if (isError || !data || !derived) {
     return (
       <View className="flex-1 items-center justify-center bg-surfaceLight p-6">
+        <Stack.Screen options={{ headerShown: true, title: 'Пакет' }} />
         <Card className="w-full items-center p-6">
           <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-red-700">
             Пакет не найден или недоступен.
