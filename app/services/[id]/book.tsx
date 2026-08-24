@@ -13,7 +13,7 @@
  * Ветка ?type=default шлёт default_service_page_id (для дефолтных услуг).
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { RequireAuth } from '@/shared/ui/RequireAuth'
@@ -33,6 +33,7 @@ import { parseApiError } from '@/features/auth/errors'
 import { BranchStep } from '@/features/booking-wizard/BranchStep'
 import { DateTimeStep } from '@/features/booking-wizard/DateTimeStep'
 import { localIsoToUtcIso } from '@/features/booking-wizard/lib'
+import { buildGoogleCalendarUrl } from '@/shared/lib/calendar'
 import type { ServiceStation } from '@/features/service-stations/types'
 import type { ClientPackageItem } from '@/shared/api/types'
 
@@ -192,6 +193,32 @@ function BookServiceWizard() {
               <Button variant="primary" size="lg" fullWidth onPress={() => router.replace('/service-book')}>
                 К моим записям
               </Button>
+              {selectedSlot ? (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  leftIcon={<Ionicons name="calendar-outline" size={16} color="#18202A" />}
+                  onPress={() =>
+                    Linking.openURL(
+                      buildGoogleCalendarUrl({
+                        title: `SCT Service: ${shortTitle}`,
+                        startIso: localIsoToUtcIso(selectedSlot),
+                        location: selectedBranch
+                          ? [selectedBranch.name, selectedBranch.city, selectedBranch.address]
+                              .filter(Boolean)
+                              .join(', ')
+                          : undefined,
+                        details: `Запись на обслуживание. Авто: ${
+                          selectedCar ? getCarTitle(selectedCar) : carFallback
+                        }. Услуга: ${shortTitle}.`,
+                      }),
+                    )
+                  }
+                >
+                  Добавить в календарь
+                </Button>
+              ) : null}
               <Button variant="secondary" size="lg" fullWidth onPress={() => router.replace('/')}>
                 На главную
               </Button>
