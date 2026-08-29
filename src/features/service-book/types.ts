@@ -92,6 +92,14 @@ export interface ServiceBookCar {
   license_plate: string
   vin_code: string | null
   nickname: string
+  /**
+   * Год выпуска КОНКРЕТНОГО экземпляра. Бэк отдаёт поле во всех ручках гаража
+   * и в service-book/page-data, но пока всегда `null`: записать его нельзя
+   * (PATCH принимает значение и молча игнорирует), и в форме добавления авто
+   * его тоже не спрашивают. Пока null — падаем на generation.year_from, то
+   * есть на год начала поколения, а это не то же самое.
+   */
+  production_year: number | null
   is_default: boolean
   status: string
   status_label: string

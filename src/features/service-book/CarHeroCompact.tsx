@@ -11,8 +11,11 @@ import type { ServiceBookCar } from './types'
 
 export function CarHeroCompact({ car }: { car: ServiceBookCar }) {
   const router = useRouter()
+  // Год: сначала реальный год выпуска экземпляра, и только если его нет —
+  // год начала поколения (это разные вещи, см. production_year в типах).
+  const year = car.production_year ?? car.generation?.year_from ?? null
   const title = `${car.mark.display_name} ${car.model.name}${
-    car.generation ? ` ${car.generation.year_from}` : ''
+    year ? ` ${year}` : ''
   }`.toUpperCase()
 
   return (
