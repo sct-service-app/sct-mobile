@@ -10,7 +10,7 @@
  * На демо реальные SMS не шлются — код всегда 8888 (см. инструкцию бэка).
  */
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -28,6 +28,7 @@ import {
   type VerifyCodeValues,
 } from '@/features/auth/schemas'
 import { parseApiError } from '@/features/auth/errors'
+import { links } from '@/shared/config/links'
 import { formatPhoneInput, unformatPhone } from '@/shared/lib/phone'
 import { shouldOfferLockPrompt } from '@/features/app-lock/storage'
 
@@ -208,6 +209,21 @@ function RegisterFormStep({
       <Button fullWidth size="lg" loading={isSubmitting} onPress={handleSubmit(onSubmit)}>
         Зарегистрироваться
       </Button>
+
+      {/* Согласие на обработку ПД. Отдельного «пользовательского соглашения»
+          у нас нет — ссылаемся только на существующую политику. */}
+      <Text className="text-center text-[12px] leading-relaxed text-textSecondary">
+        Регистрируясь, вы соглашаетесь на обработку персональных данных в
+        соответствии с{' '}
+        <Text
+          style={{ fontFamily: 'Inter_700Bold' }}
+          className="text-brandBlue underline"
+          onPress={() => Linking.openURL(links.privacy)}
+        >
+          политикой конфиденциальности
+        </Text>
+        .
+      </Text>
 
       <View className="flex-row justify-center gap-1 pt-2">
         <Text className="text-textSecondary">Уже зарегистрированы?</Text>

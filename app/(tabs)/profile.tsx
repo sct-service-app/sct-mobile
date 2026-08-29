@@ -13,7 +13,7 @@
  * Вернём, когда бэк подключит ручки.
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import { Alert, ScrollView, Text, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { RequireAuth } from '@/shared/ui/RequireAuth'
 import { Card } from '@/shared/ui/Card'
@@ -29,6 +29,7 @@ import { useAppLockStore } from '@/features/app-lock/store'
 import { isBiometricAvailable } from '@/features/app-lock/biometrics'
 import * as appLockStorage from '@/features/app-lock/storage'
 import type { ClientProfile } from '@/shared/api/types'
+import { links } from '@/shared/config/links'
 
 const STATUS_LABEL: Record<string, { text: string; ok: boolean }> = {
   ACTIVE: { text: 'Подтверждён по СМС', ok: true },
@@ -188,6 +189,19 @@ function Profile() {
             Сменить код
           </Button>
         ) : null}
+      </Card>
+
+      {/* Правовые документы. Пользовательского соглашения у нас нет —
+          ссылаемся только на политику конфиденциальности. */}
+      <Card className="gap-3 p-6">
+        <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
+          Документы
+        </Text>
+        <Pressable onPress={() => Linking.openURL(links.privacy)}>
+          <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-sm text-brandBlue">
+            Политика конфиденциальности
+          </Text>
+        </Pressable>
       </Card>
 
       <Button variant="danger" fullWidth size="lg" onPress={handleLogout}>
