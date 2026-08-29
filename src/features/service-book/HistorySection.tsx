@@ -1,5 +1,5 @@
 /**
- * «Журнал обслуживания» — RN-порт features/service-book/HistorySection.tsx.
+ * «История обслуживания» — RN-порт features/service-book/HistorySection.tsx.
  * Пусто → плашка «История пуста». Дата через date-fns. Press → /bookings/[id].
  */
 import { Pressable, Text, View } from 'react-native'
@@ -34,7 +34,7 @@ export function HistorySection({ history }: { history: Booking[] }) {
     <Card className="overflow-hidden">
       <View className="border-b border-borderLight px-5 py-4">
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-base uppercase text-textPrimary">
-          Журнал обслуживания
+          История обслуживания
         </Text>
       </View>
       {history.map((visit) => {
