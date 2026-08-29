@@ -31,6 +31,11 @@ import { formatEngineVolume } from '@/shared/lib/format'
 import { useCreateCarMutation } from '@/features/garage/queries'
 import { parseApiError } from '@/features/auth/errors'
 import {
+  LICENSE_PLATE_ERROR,
+  isValidLicensePlate,
+  normalizeLicensePlate,
+} from '@/shared/lib/license-plate'
+import {
   useFiltersQuery,
   useMarksQuery,
   useModelsQuery,
@@ -140,11 +145,13 @@ function AddCarWizard() {
     try {
       await createCar.mutateAsync({
         modification_trim_source_id: trim.source_id,
-        license_plate: v.license_plate.trim().toUpperCase(),
-        nickname: v.nickname?.trim() ?? '',
+        license_plate: normalizeLicensePlate(v.license_plate),
         vin_code: v.vin_code?.trim().toUpperCase() ?? '',
         mileage_km: null,
         is_default: true,
+        // Год со шага «Поколение» — заказчик ждёт в гараже именно его,
+        // а не год начала поколения.
+        production_year: specs.year ?? null,
       })
       router.replace('/garage')
     } catch (err) {
@@ -718,16 +725,17 @@ function TrimPicker({
 }
 
 // --- Шаг 6: Номер ---
-const licensePlateRegex = /^[A-ZА-ЯЁ0-9\-\s]{2,32}$/i
+// Госномер проверяем по казахстанскому формату (3 цифры + 2–3 буквы + регион
+// 01–20), см. shared/lib/license-plate. Раньше стоял почти пустой паттерн, и
+// в гараж проходили огрызки без региона. Поле «псевдоним» убрано по просьбе
+// заказчика — его можно задать позже в редактировании авто.
 const vinRegex = /^[A-HJ-NPR-Z0-9]{0,17}$/
 
 const finalSchema = z.object({
   license_plate: z
     .string()
-    .min(2, 'Минимум 2 символа')
-    .max(32, 'Максимум 32 символа')
-    .regex(licensePlateRegex, 'Только буквы, цифры, дефис'),
-  nickname: z.string().max(255, 'Максимум 255 символов').optional().or(z.literal('')),
+    .min(1, 'Введите госномер')
+    .refine(isValidLicensePlate, LICENSE_PLATE_ERROR),
   vin_code: z
     .string()
     .regex(vinRegex, 'VIN — только латиница (без I, O, Q) и цифры')
@@ -752,7 +760,7 @@ function FinalForm({
     formState: { errors, isSubmitting },
   } = useForm<FinalValues>({
     resolver: zodResolver(finalSchema),
-    defaultValues: { license_plate: '', nickname: '', vin_code: defaultVin ?? '' },
+    defaultValues: { license_plate: '', vin_code: defaultVin ?? '' },
   })
 
   return (
@@ -769,26 +777,12 @@ function FinalForm({
           render={({ field }) => (
             <Input
               label="Госномер (обязательно)"
-              placeholder="000 AAA 01"
+              placeholder="123ABC02"
               autoCapitalize="characters"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
               error={errors.license_plate?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="nickname"
-          render={({ field }) => (
-            <Input
-              label="Псевдоним авто (необязательно)"
-              placeholder="Напр: Моя машина"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={errors.nickname?.message}
             />
           )}
         />

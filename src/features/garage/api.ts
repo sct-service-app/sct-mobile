@@ -17,6 +17,13 @@ export interface CarWritePayload {
   vin_code?: string
   is_default?: boolean
   mileage_km?: number | null
+  /**
+   * Год выпуска конкретной машины — его пользователь выбирает на шаге
+   * «Поколение» мастера. Бэк отдаёт поле во всех ручках гаража, но на запись
+   * пока игнорирует (PATCH возвращает 200, значение остаётся null) — как
+   * только сделает writable, год поедет сам.
+   */
+  production_year?: number | null
 }
 
 /**
