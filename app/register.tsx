@@ -122,6 +122,28 @@ function RegisterFormStep({
       onRegistered(data.phone || unformatPhone(values.phone), data.resend_available_in ?? 60)
     } catch (err) {
       const parsed = parseApiError(err, 'Не удалось зарегистрироваться.')
+
+      // Номер занят (409 conflict). Бэк одинаково отвечает и на полностью
+      // зарегистрированный номер, и на брошенную регистрацию — различить их
+      // можно только через resend: для незавершённой он вернёт 200 и вышлет
+      // новый код, для подтверждённой — 400 registration_verification_unavailable.
+      // Так человек, который закрыл приложение до ввода кода, не остаётся
+      // запертым: раньше он навсегда упирался в «телефон уже существует».
+      if (parsed.code === 'conflict') {
+        const normalized = unformatPhone(values.phone)
+        try {
+          const resent = await resendRegistrationCode({ phone: normalized })
+          onRegistered(normalized, resent.resend_available_in ?? 60)
+          return
+        } catch {
+          setError('phone', {
+            type: 'server',
+            message: 'Этот номер уже зарегистрирован — войдите или восстановите пароль.',
+          })
+          return
+        }
+      }
+
       for (const [field, message] of Object.entries(parsed.fields)) {
         if (field === 'first_name' || field === 'last_name' || field === 'full_name') {
           setError('full_name', { type: 'server', message })
