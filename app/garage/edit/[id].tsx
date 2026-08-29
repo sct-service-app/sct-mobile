@@ -1,8 +1,11 @@
 /**
  * Редактирование авто (RN-порт pages/EditCarPage.tsx).
  *
- * PATCH /garage/cars/{id}/ меняет только `nickname` и `mileage_km` (бэк):
- * госномер, VIN и модификация — readonly (чтобы сменить модификацию, авто
+ * PATCH /garage/cars/{id}/ принимает `nickname` и `mileage_km`, но пробег из
+ * формы убран по просьбе заказчика (2026-08-29): его проставляет сервис при
+ * обслуживании, и от него считаются рекомендации — клиент не должен его
+ * трогать. Текущее значение показываем в шапке карточки только для чтения.
+ * Госномер, VIN и модификация тоже readonly (чтобы сменить модификацию, авто
  * удаляют и добавляют заново через конфигуратор). Плюс действия: «сделать
  * активным» и «удалить» (через нативный Alert, как в детали записи).
  *
@@ -34,11 +37,6 @@ import { toast } from '@/shared/ui/Toast'
 
 const editSchema = z.object({
   nickname: z.string().trim().max(255, 'Не больше 255 символов'),
-  mileage_km: z
-    .number()
-    .int('Целое число')
-    .min(0, 'Пробег не может быть отрицательным')
-    .max(9_999_999, 'Слишком большое значение'),
 })
 type EditValues = z.infer<typeof editSchema>
 
@@ -70,16 +68,13 @@ function EditCarInner({ id }: { id?: number }) {
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { nickname: '', mileage_km: 0 },
+    defaultValues: { nickname: '' },
   })
 
   // Подставляем серверные значения, когда машина прогрузится.
   useEffect(() => {
     if (car) {
-      reset({
-        nickname: car.nickname ?? '',
-        mileage_km: car.latest_mileage_km ?? 0,
-      })
+      reset({ nickname: car.nickname ?? '' })
     }
   }, [car, reset])
 
@@ -115,26 +110,20 @@ function EditCarInner({ id }: { id?: number }) {
   const onSubmit = async (values: EditValues) => {
     setServerError(null)
     try {
-      // Шлём ТОЛЬКО реально изменённые поля. Иначе на каждом сохранении летел
-      // весь набор, и это ломалось в двух случаях:
-      //   1) у авто ещё нет пробега → в форме 0 → бэк отвечает 400
-      //      «Ensure this value is greater than or equal to 1», и переименовать
-      //      машину становится невозможно в принципе;
-      //   2) повторная отправка того же пробега без изменений.
+      // Шлём ТОЛЬКО реально изменённые поля — не тревожим бэк лишними.
       // PatchedClientGarageCarWriteRequest в OpenAPI ошибочно требует is_default —
       // на бэке поля реально опциональны, поэтому кастуем (как в вебе).
-      const payload: { nickname?: string; mileage_km?: number } = {}
+      const payload: { nickname?: string } = {}
       if (dirtyFields.nickname) payload.nickname = values.nickname
-      if (dirtyFields.mileage_km) payload.mileage_km = values.mileage_km
 
       await updateMut.mutateAsync(payload as Parameters<typeof updateMut.mutateAsync>[0])
       // Обновляем defaultValues — форма становится «чистой» (Save задизейблится).
-      reset({ nickname: values.nickname, mileage_km: values.mileage_km })
+      reset({ nickname: values.nickname })
       toast.success('Изменения сохранены')
     } catch (err) {
       const parsed = parseApiError(err, 'Не удалось сохранить изменения.')
       for (const [field, message] of Object.entries(parsed.fields)) {
-        if (field === 'nickname' || field === 'mileage_km') {
+        if (field === 'nickname') {
           setError(field, { type: 'server', message })
         }
       }
@@ -248,26 +237,6 @@ function EditCarInner({ id }: { id?: number }) {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 error={errors.nickname?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="mileage_km"
-            render={({ field }) => (
-              <Input
-                label="Текущий пробег, км *"
-                placeholder="84200"
-                keyboardType="number-pad"
-                hint="Сохраняется в историю пробега — на его основе считаются рекомендации сервиса."
-                value={field.value ? String(field.value) : ''}
-                onChangeText={(t) => {
-                  const digits = t.replace(/[^0-9]/g, '')
-                  field.onChange(digits === '' ? 0 : Number(digits))
-                }}
-                onBlur={field.onBlur}
-                error={errors.mileage_km?.message}
               />
             )}
           />
