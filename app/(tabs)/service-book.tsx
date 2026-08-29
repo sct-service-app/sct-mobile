@@ -1,5 +1,5 @@
 /**
- * Сервисная книжка — порт pages/ServiceBookPage.tsx (одна колонка).
+ * Экран «Авто» (бывшая «Сервисная книжка») — порт pages/ServiceBookPage.tsx (одна колонка).
  * Источник — useServiceBookQuery. Состояния: loading/error/NO_CARS/data.
  * Защищён RequireAuth (таб виден только авторизованному, но на всякий случай).
  */

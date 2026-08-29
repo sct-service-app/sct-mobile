@@ -1,7 +1,7 @@
 /**
  * Нижние табы — перенос app/MobileTabBar.tsx из веба:
- *   Главная / Книжка(authOnly) / Услуги / Контакты / Профиль(authOnly).
- * «Книжка» и «Профиль» требуют авторизации → для гостя табы скрыты (href: null).
+ *   Главная / Авто(authOnly) / Услуги / Контакты / Профиль(authOnly).
+ * «Авто» и «Профиль» требуют авторизации → для гостя табы скрыты (href: null).
  */
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -41,9 +41,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="service-book"
         options={{
-          title: 'Книжка',
+          title: 'Авто',
           href: isAuthed ? undefined : null,
-          tabBarIcon: ({ color, size }) => <Ionicons name="book-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="car-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
