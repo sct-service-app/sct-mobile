@@ -67,7 +67,7 @@ function EditCarInner({ id }: { id?: number }) {
     handleSubmit,
     reset,
     setError,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
     defaultValues: { nickname: '', mileage_km: 0 },
@@ -115,12 +115,19 @@ function EditCarInner({ id }: { id?: number }) {
   const onSubmit = async (values: EditValues) => {
     setServerError(null)
     try {
+      // Шлём ТОЛЬКО реально изменённые поля. Иначе на каждом сохранении летел
+      // весь набор, и это ломалось в двух случаях:
+      //   1) у авто ещё нет пробега → в форме 0 → бэк отвечает 400
+      //      «Ensure this value is greater than or equal to 1», и переименовать
+      //      машину становится невозможно в принципе;
+      //   2) повторная отправка того же пробега без изменений.
       // PatchedClientGarageCarWriteRequest в OpenAPI ошибочно требует is_default —
       // на бэке поля реально опциональны, поэтому кастуем (как в вебе).
-      await updateMut.mutateAsync({
-        nickname: values.nickname,
-        mileage_km: values.mileage_km,
-      } as Parameters<typeof updateMut.mutateAsync>[0])
+      const payload: { nickname?: string; mileage_km?: number } = {}
+      if (dirtyFields.nickname) payload.nickname = values.nickname
+      if (dirtyFields.mileage_km) payload.mileage_km = values.mileage_km
+
+      await updateMut.mutateAsync(payload as Parameters<typeof updateMut.mutateAsync>[0])
       // Обновляем defaultValues — форма становится «чистой» (Save задизейблится).
       reset({ nickname: values.nickname, mileage_km: values.mileage_km })
       toast.success('Изменения сохранены')

@@ -46,6 +46,10 @@ const TRANSLATIONS: Array<[RegExp | string, Translator]> = [
   ['Enter a valid email address.', 'Введите корректный email.'],
   [/^Ensure this field has no more than (\d+) characters/i, (m) => `Не больше ${m[1]} символов.`],
   [/^Ensure this field has at least (\d+) characters/i, (m) => `Минимум ${m[1]} символов.`],
+  // Числовые границы (DRF min_value / max_value) — напр. пробег: бэк требует >= 1.
+  [/^Ensure this value is greater than or equal to (\d+)/i, (m) => `Значение должно быть не меньше ${m[1]}.`],
+  [/^Ensure this value is less than or equal to (\d+)/i, (m) => `Значение должно быть не больше ${m[1]}.`],
+  ['A valid integer is required.', 'Введите целое число.'],
 ]
 
 export function translateApiMessage(msg: string): string {
