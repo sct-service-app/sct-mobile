@@ -554,6 +554,17 @@ function ModificationPicker({
   onConfirm: () => void
 }) {
   const baseQuery: CarsQuery = useMemo(() => ({ mark: markId, model: modelId, ...specs }), [markId, modelId, specs])
+
+  // Опции чипов — БЕЗ самих chip-фильтров. `filters/` сужает варианты с учётом
+  // уже выбранных: после выбора «2.0 л» ручка вернёт engine_volumes: [2.0], и
+  // остальные объёмы исчезнут с экрана — переключиться будет некуда (жалоба
+  // заказчика). Полный набор берём отдельным запросом, а ответ с фильтрами
+  // используем только чтобы приглушить недоступные комбинации.
+  const optionsQuery: CarsQuery = useMemo(
+    () => ({ mark: markId, model: modelId, year: specs.year, body_type: specs.body_type, generation: specs.generation }),
+    [markId, modelId, specs.year, specs.body_type, specs.generation],
+  )
+  const { data: allOptions } = useFiltersQuery(optionsQuery)
   const { data: filters } = useFiltersQuery(baseQuery)
   const { data, isLoading, isError } = useModificationsQuery({ ...baseQuery, page_size: 100 })
   const mods = data?.results ?? []
@@ -561,36 +572,75 @@ function ModificationPicker({
 
   const setFilter = (patch: Partial<SpecsValues>) => onChangeSpecs({ ...specs, ...patch })
 
-  const fuelOpts = (filters?.fuel_types ?? []).map((f) => ({ value: f.value, label: f.label || f.value }))
-  const volumeOpts = (filters?.engine_volumes ?? []).map((o) => ({
+  const availSet = <T,>(list: T[] | undefined, key: (v: T) => string) => new Set((list ?? []).map(key))
+
+  const fuelOpts = (allOptions?.fuel_types ?? []).map((f) => ({ value: f.value, label: f.label || f.value }))
+  const fuelAvail = availSet(filters?.fuel_types, (f) => f.value)
+  const volumeOpts = (allOptions?.engine_volumes ?? []).map((o) => ({
     value: String(o.value),
     label: formatEngineVolume(o.value) ?? String(o.value),
   }))
-  const powerOpts = (filters?.horse_powers ?? []).map((o) => ({ value: String(o.value), label: String(o.value) }))
-  const transOpts = mapCodeName(filters?.transmission_types)
-  const driveOpts = mapCodeName(filters?.drive_types)
-  const steerOpts = mapCodeName(filters?.steering_positions)
+  const volumeAvail = availSet(filters?.engine_volumes, (o) => String(o.value))
+  const powerOpts = (allOptions?.horse_powers ?? []).map((o) => ({ value: String(o.value), label: String(o.value) }))
+  const powerAvail = availSet(filters?.horse_powers, (o) => String(o.value))
+  const transOpts = mapCodeName(allOptions?.transmission_types)
+  const transAvail = availSet(filters?.transmission_types, (o) => o.value)
+  const driveOpts = mapCodeName(allOptions?.drive_types)
+  const driveAvail = availSet(filters?.drive_types, (o) => o.value)
+  const steerOpts = mapCodeName(allOptions?.steering_positions)
+  const steerAvail = availSet(filters?.steering_positions, (o) => o.value)
+
+  const hasAnyChipFilter =
+    specs.fuel_type !== undefined ||
+    specs.engine_volume !== undefined ||
+    specs.horse_power !== undefined ||
+    specs.transmission_type !== undefined ||
+    specs.drive_type !== undefined ||
+    specs.steering_wheel_position !== undefined
+
+  const resetChips = () =>
+    onChangeSpecs({
+      ...specs,
+      fuel_type: undefined,
+      engine_volume: undefined,
+      horse_power: undefined,
+      transmission_type: undefined,
+      drive_type: undefined,
+      steering_wheel_position: undefined,
+    })
 
   return (
     <View className="flex-1">
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <StepCard>
-          <FilterChips label="Тип топлива" options={fuelOpts} value={specs.fuel_type} onToggle={(v) => setFilter({ fuel_type: v })} />
+          {hasAnyChipFilter ? (
+            <View className="items-end">
+              <Pressable onPress={resetChips} hitSlop={8}>
+                <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[11px] uppercase tracking-widest text-brandBlue">
+                  Сбросить фильтры
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <FilterChips label="Тип топлива" options={fuelOpts} available={fuelAvail} value={specs.fuel_type} onToggle={(v) => setFilter({ fuel_type: v })} />
           <FilterChips
             label="Объём двигателя"
             options={volumeOpts}
+            available={volumeAvail}
             value={specs.engine_volume !== undefined ? String(specs.engine_volume) : undefined}
             onToggle={(v) => setFilter({ engine_volume: v ? Number(v) : undefined })}
           />
           <FilterChips
             label="Мощность (л.с.)"
             options={powerOpts}
+            available={powerAvail}
             value={specs.horse_power !== undefined ? String(specs.horse_power) : undefined}
             onToggle={(v) => setFilter({ horse_power: v ? Number(v) : undefined })}
           />
-          <FilterChips label="Коробка передач" options={transOpts} value={specs.transmission_type} onToggle={(v) => setFilter({ transmission_type: v })} />
-          <FilterChips label="Тип привода" options={driveOpts} value={specs.drive_type} onToggle={(v) => setFilter({ drive_type: v })} />
-          <FilterChips label="Тип руля" options={steerOpts} value={specs.steering_wheel_position} onToggle={(v) => setFilter({ steering_wheel_position: v })} />
+          <FilterChips label="Коробка передач" options={transOpts} available={transAvail} value={specs.transmission_type} onToggle={(v) => setFilter({ transmission_type: v })} />
+          <FilterChips label="Тип привода" options={driveOpts} available={driveAvail} value={specs.drive_type} onToggle={(v) => setFilter({ drive_type: v })} />
+          <FilterChips label="Тип руля" options={steerOpts} available={steerAvail} value={specs.steering_wheel_position} onToggle={(v) => setFilter({ steering_wheel_position: v })} />
 
           <View className="gap-3 border-t border-borderLight pt-5">
             <SectionLabel>Подходящие авто ({total.toLocaleString('ru-RU')})</SectionLabel>
@@ -858,11 +908,18 @@ function SelectTile({
 function FilterChips({
   label,
   options,
+  available,
   value,
   onToggle,
 }: {
   label: string
   options: { value: string; label: string }[]
+  /**
+   * Доступные при текущем наборе фильтров значения. Недоступные не прячем и не
+   * блокируем — приглушаем: клик заменяет выбор внутри группы, чтобы после
+   * случайного нажатия можно было переключиться, а не начинать всё заново.
+   */
+  available: Set<string>
   value: string | undefined
   onToggle: (value: string | undefined) => void
 }) {
@@ -873,11 +930,15 @@ function FilterChips({
       <View className="flex-row flex-wrap gap-2">
         {options.map((o) => {
           const active = value === o.value
+          const dimmed = !active && !available.has(o.value)
           return (
             <SelectTile key={o.value} active={active} onPress={() => onToggle(active ? undefined : o.value)}>
               <Text
                 style={{ fontFamily: 'Inter_700Bold' }}
-                className={cn('text-[13px]', active ? 'text-brandBlue' : 'text-textPrimary')}
+                className={cn(
+                  'text-[13px]',
+                  active ? 'text-brandBlue' : dimmed ? 'text-textSecondary/40' : 'text-textPrimary',
+                )}
               >
                 {o.label}
               </Text>
