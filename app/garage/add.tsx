@@ -421,14 +421,32 @@ function SpecsPicker({
   onChange: (next: SpecsValues) => void
   onContinue: () => void
 }) {
-  const query = useMemo(() => ({ mark: markId, model: modelId, ...values }), [markId, modelId, values])
-  const { data, isFetching, isError } = useFiltersQuery(query)
+  /**
+   * Три отдельных запроса вместо одного — иначе каждый список схлопывается сам
+   * в себя. `filters/` сужает варианты по всем переданным параметрам, поэтому
+   * запрос со всеми `values` возвращал ровно то, что уже выбрано: после клика
+   * по «2017» ручка отдавала years: [2017], остальные 50+ годов исчезали, и
+   * поменять год можно было только начав добавление авто заново.
+   * Каскад сохраняем: кузова сужаются годом, поколения — годом и кузовом.
+   */
+  const yearsQuery = useMemo(() => ({ mark: markId, model: modelId }), [markId, modelId])
+  const bodyQuery = useMemo(
+    () => ({ mark: markId, model: modelId, year: values.year }),
+    [markId, modelId, values.year],
+  )
+  const genQuery = useMemo(
+    () => ({ mark: markId, model: modelId, year: values.year, body_type: values.body_type }),
+    [markId, modelId, values.year, values.body_type],
+  )
+  const { data, isFetching, isError } = useFiltersQuery(yearsQuery)
+  const { data: bodyData } = useFiltersQuery(bodyQuery)
+  const { data: genData } = useFiltersQuery(genQuery)
   const [showAllYears, setShowAllYears] = useState(false)
 
   const years = data?.years ?? []
-  const bodyTypes = data?.body_types ?? []
-  const generations = data?.generations ?? []
-  const count = data?.modifications_count ?? 0
+  const bodyTypes = bodyData?.body_types ?? []
+  const generations = genData?.generations ?? []
+  const count = genData?.modifications_count ?? data?.modifications_count ?? 0
 
   const sortedYears = useMemo(() => [...years].sort((a, b) => b - a), [years])
   const visibleYears = showAllYears ? sortedYears : sortedYears.slice(0, YEAR_LIMIT)
