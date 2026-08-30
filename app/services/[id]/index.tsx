@@ -14,6 +14,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { GuestPrompt } from '@/features/auth/GuestPrompt'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Card } from '@/shared/ui/Card'
+import { SafeImage } from '@/shared/ui/SafeImage'
 import { Button } from '@/shared/ui/Button'
 import { BottomBar } from '@/shared/ui/BottomBar'
 import { formatMoney } from '@/shared/lib/format'
@@ -91,6 +92,18 @@ export default function PackageDetailScreen() {
       <Stack.Screen options={{ headerShown: true, title: 'Пакет' }} />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+        {/* Фото пакета. На вебе оно давно есть в сайдбаре карточки, а в
+            приложении блока не было вовсе — заказчик прислал скрин «в пакете
+            нету фото». Если картинки нет, ничего не рисуем: пустая серая
+            плашка выглядела бы хуже, чем её отсутствие. */}
+        {data.image_url ? (
+          <Card className="overflow-hidden p-0">
+            <View className="h-44 w-full bg-surfaceLight">
+              <SafeImage uri={data.image_url} resizeMode="cover" className="h-full w-full" />
+            </View>
+          </Card>
+        ) : null}
+
         {/* Hero */}
         <Card className="overflow-hidden p-5">
           <View style={{ backgroundColor: accent }} className="absolute inset-x-0 top-0 h-1.5" />
