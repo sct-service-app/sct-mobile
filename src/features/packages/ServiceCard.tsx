@@ -39,8 +39,13 @@ export function ServiceCard({ pkg }: { pkg: ClientServicePackage }) {
             fallback={<Ionicons name={categoryIcon(pkg.category?.code)} size={22} color="#1F5FAF" />}
           />
         </View>
+        {/* minHeight под две строки: заголовок и так обрезается на второй
+            (numberOfLines={2}), но короткие названия делали карточку ниже, и
+            в карусели соседние карточки различались по высоте — заказчик
+            заметил это, сравнив два телефона. Резервируем две строки всегда,
+            высота перестаёт зависеть от длины названия. */}
         <Text
-          style={{ fontFamily: 'Inter_900Black' }}
+          style={{ fontFamily: 'Inter_900Black', minHeight: 40 }}
           numberOfLines={2}
           className="text-base uppercase leading-tight text-textPrimary"
         >
