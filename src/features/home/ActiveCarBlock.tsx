@@ -5,17 +5,15 @@
  * Источник — service-book/page-data (selected_car + рекомендация + визит).
  */
 import { Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
 import { useServiceBookQuery } from '@/features/service-book/queries'
 import { findRecommendation, sortRecommendationsByUrgency } from '@/features/service-book/recommendations'
+import { BookServiceCTA } from '@/features/service-book/BookServiceCTA'
 import { Card } from '@/shared/ui/Card'
-import { Button } from '@/shared/ui/Button'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Skeleton } from '@/shared/ui/Skeleton'
 import { formatDateTime, formatMileage } from '@/shared/lib/format'
 
 export function ActiveCarBlock() {
-  const router = useRouter()
   const { data, isLoading } = useServiceBookQuery({ status: 'all', period: 'upcoming', limit: 1, offset: 0 })
 
   if (isLoading) return <Skeleton.Card className="h-72" />
@@ -104,10 +102,11 @@ export function ActiveCarBlock() {
           </View>
         ) : null}
 
+        {/* Та же кнопка, что на «Авто» — с иконкой календаря. Раньше здесь был
+            обычный Button без иконки, и заказчик заметил разнобой между
+            вкладками. Общий компонент, чтобы не разъезжались снова. */}
         <View className="mt-4">
-          <Button fullWidth onPress={() => router.push('/services')}>
-            Записаться на сервис
-          </Button>
+          <BookServiceCTA />
         </View>
       </View>
     </Card>
