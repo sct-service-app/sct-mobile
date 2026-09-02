@@ -18,14 +18,18 @@ import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
+import { useCarYear } from '@/features/garage/carYear'
 import type { ServiceBookCar } from './types'
 
 export function CarHeroCompact({ car }: { car: ServiceBookCar }) {
   const router = useRouter()
-  // Год: сначала реальный год выпуска экземпляра, и только если его нет —
-  // год начала поколения (это разные вещи, см. production_year в типах).
-  const year = car.production_year ?? car.generation?.year_from ?? null
-  const title = `${car.mark.display_name} ${car.model.name}${year ? ` ${year}` : ''}`.toUpperCase()
+  // Год — через общий хук: page-data отдаёт production_year пустым, поэтому
+  // введённое человеком значение берётся из гаража (см. useCarYear).
+  const year = useCarYear(car.id)
+  // Полное название модификации — как в плашке на «Услугах», которую заказчик
+  // и просил повторить («BMW X7 I (G07) Рестайлинг Внедорожник…»). Год в
+  // заголовок не дублируем: он рядом, в отдельной чёрной рамке.
+  const title = (car.full_car_title || car.display_name).toUpperCase()
 
   return (
     <Pressable onPress={() => router.push(`/garage/edit/${car.id}`)} className="active:opacity-90">

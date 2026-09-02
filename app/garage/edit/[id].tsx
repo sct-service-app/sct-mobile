@@ -172,7 +172,10 @@ function EditCarInner({ id }: { id?: number }) {
           style: 'destructive',
           onPress: () =>
             deleteMut.mutate(id, {
-              onSuccess: () => router.replace('/garage'),
+              // После удаления — на вкладку «Авто»: там и оставшиеся машины, и
+              // состояние «Гараж пуст», если удалили последнюю. Экран «Гараж»
+              // не во вкладках, оставлять человека на нём некуда.
+              onSuccess: () => router.replace('/service-book'),
               onError: (err) =>
                 setServerError(parseApiError(err, 'Не удалось удалить авто.').general),
             }),
@@ -274,7 +277,16 @@ function EditCarInner({ id }: { id?: number }) {
 
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Button variant="ghost" fullWidth onPress={() => router.replace('/garage')}>
+              {/* «Отмена» возвращает туда, откуда пришли (главная, «Авто»,
+                  гараж), а не всегда в гараж: в редактирование попадают
+                  нажатием на карточку авто с разных экранов. Экрана «Гараж»
+                  нет во вкладках, и выкидывать в него — сбивать человека с
+                  пути. Некуда возвращаться (прямой диплинк) — тогда гараж. */}
+              <Button
+                variant="ghost"
+                fullWidth
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/garage'))}
+              >
                 Отмена
               </Button>
             </View>

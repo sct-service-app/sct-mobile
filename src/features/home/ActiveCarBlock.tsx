@@ -9,6 +9,7 @@ import { useServiceBookQuery } from '@/features/service-book/queries'
 import { sortRecommendationsByUrgency } from '@/features/service-book/recommendations'
 import { CarSpecChips } from '@/features/service-book/CarSpecChips'
 import { PlateBadge } from '@/features/service-book/CarHeroCompact'
+import { useCarYear } from '@/features/garage/carYear'
 import { BookServiceCTA } from '@/features/service-book/BookServiceCTA'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
@@ -17,6 +18,9 @@ import { formatMileage } from '@/shared/lib/format'
 
 export function ActiveCarBlock() {
   const { data, isLoading } = useServiceBookQuery({ status: 'all', period: 'upcoming', limit: 1, offset: 0 })
+  // Хук обязан вызываться до ранних return'ов, поэтому берём id аккуратно:
+  // на момент загрузки selected_car ещё нет.
+  const year = useCarYear(data?.selected_car?.id)
 
   if (isLoading) return <Skeleton.Card className="h-72" />
 
@@ -34,7 +38,6 @@ export function ActiveCarBlock() {
     : null
   const next = data?.next_appointment
   const title = car.full_car_title || car.display_name
-  const year = car.production_year ?? car.generation?.year_from ?? null
 
   return (
     <Card className="overflow-hidden p-0">

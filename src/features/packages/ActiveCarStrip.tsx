@@ -13,6 +13,7 @@ import { useServiceBookQuery } from '@/features/service-book/queries'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { PlateBadge } from '@/features/service-book/CarHeroCompact'
+import { useCarYear } from '@/features/garage/carYear'
 import type { ClientActiveCar } from '@/shared/api/types'
 
 export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
@@ -20,7 +21,7 @@ export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
   const selected = book?.selected_car
   const sameCar = selected && selected.id === activeCar.id ? selected : null
   const photo = sameCar?.image_url ?? null
-  const year = sameCar ? (sameCar.production_year ?? sameCar.generation?.year_from ?? null) : null
+  const year = useCarYear(activeCar.id)
 
   return (
     <Card className="flex-row items-center gap-4 p-4">

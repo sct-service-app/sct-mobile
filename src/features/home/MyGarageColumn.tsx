@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSetDefaultCarMutation } from '@/features/garage/queries'
 import { useServiceBookQuery } from '@/features/service-book/queries'
 import { PlateBadge } from '@/features/service-book/CarHeroCompact'
+import { useCarYear } from '@/features/garage/carYear'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Skeleton } from '@/shared/ui/Skeleton'
@@ -77,7 +78,7 @@ function CarRow({
   onSetDefault: () => void
   isPending: boolean
 }) {
-  const year = car.production_year ?? car.generation?.year_from ?? null
+  const year = useCarYear(car.id)
   const title = car.full_car_title || car.display_name || 'Автомобиль'
 
   return (

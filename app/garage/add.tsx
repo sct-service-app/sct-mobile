@@ -157,7 +157,11 @@ function AddCarWizard() {
         // года легло бы целиком.
         production_year: specs.year,
       })
-      router.replace('/garage')
+      // После добавления уводим на вкладку «Авто»: новая машина сразу
+      // становится активной (is_default выше), и человек видит её в верхней
+      // плашке и в «Моём гараже». Раньше здесь был экран «Гараж», которого нет
+      // во вкладках, — из него потом некуда было деться, кроме кнопки «назад».
+      router.replace('/service-book')
     } catch (err) {
       const parsed = parseApiError(err, 'Не удалось сохранить автомобиль.')
       const msgs = [parsed.general, ...Object.values(parsed.fields)].filter(Boolean) as string[]
