@@ -6,12 +6,14 @@
  */
 import { Text, View } from 'react-native'
 import { useServiceBookQuery } from '@/features/service-book/queries'
-import { findRecommendation, sortRecommendationsByUrgency } from '@/features/service-book/recommendations'
+import { sortRecommendationsByUrgency } from '@/features/service-book/recommendations'
+import { CarSpecChips } from '@/features/service-book/CarSpecChips'
+import { PlateBadge } from '@/features/service-book/CarHeroCompact'
 import { BookServiceCTA } from '@/features/service-book/BookServiceCTA'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Skeleton } from '@/shared/ui/Skeleton'
-import { formatDateTime, formatMileage } from '@/shared/lib/format'
+import { formatMileage } from '@/shared/lib/format'
 
 export function ActiveCarBlock() {
   const { data, isLoading } = useServiceBookQuery({ status: 'all', period: 'upcoming', limit: 1, offset: 0 })
@@ -22,7 +24,6 @@ export function ActiveCarBlock() {
   if (!car) return null
 
   const recs = data?.service_recommendations?.recommendations
-  const engineOil = findRecommendation(recs, 'engine_oil')
   const topRec = sortRecommendationsByUrgency(recs ?? [])[0]
   const topRecMessage = topRec
     ? topRec.is_due
@@ -32,9 +33,8 @@ export function ActiveCarBlock() {
         : topRec.title
     : null
   const next = data?.next_appointment
-  const nextDt = next?.final_datetime ?? next?.scheduled_datetime ?? next?.preferred_datetime
   const title = car.full_car_title || car.display_name
-  const hasMileage = typeof car.latest_mileage_km === 'number' && car.latest_mileage_km > 0
+  const year = car.production_year ?? car.generation?.year_from ?? null
 
   return (
     <Card className="overflow-hidden p-0">
@@ -64,22 +64,17 @@ export function ActiveCarBlock() {
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-lg uppercase text-textPrimary">
           {title}
         </Text>
-        {car.license_plate ? (
-          <View className="mt-2 self-start rounded bg-surfaceMuted px-2 py-1">
-            <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-[10px] uppercase tracking-wide text-textSecondary">
-              {car.license_plate}
-            </Text>
-          </View>
-        ) : null}
+        {/* Те же чёрные рамки, что на вкладке «Авто» и в «Моём гараже» —
+            раньше здесь была серая плашка без года, и блоки не совпадали. */}
+        <View className="mt-2 flex-row items-center gap-1.5">
+          {car.license_plate ? <PlateBadge>{car.license_plate}</PlateBadge> : null}
+          {year ? <PlateBadge>{String(year)}</PlateBadge> : null}
+        </View>
 
-        {/* Плашки: Пробег / Замена масла / Ближайший визит */}
-        <View className="mt-4 flex-row gap-2">
-          <SpecChip label="Пробег" value={hasMileage ? formatMileage(car.latest_mileage_km) : '—'} />
-          <SpecChip
-            label="Замена масла"
-            value={engineOil?.next_service_mileage_km != null ? formatMileage(engineOil.next_service_mileage_km) : '—'}
-          />
-          <SpecChip label="Ближайший визит" value={nextDt ? formatDateTime(nextDt) : 'Нет'} accent={Boolean(nextDt)} />
+        {/* Плашки: Пробег / Замена масла / Ближайший визит — общий компонент,
+            он же на вкладке «Авто», чтобы вёрстка не разъезжалась. */}
+        <View className="mt-4">
+          <CarSpecChips />
         </View>
 
         {topRecMessage ? (
@@ -113,19 +108,3 @@ export function ActiveCarBlock() {
   )
 }
 
-function SpecChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <View className="flex-1 rounded-sct border border-borderLight bg-surfaceLight px-3 py-2.5">
-      <Text style={{ fontFamily: 'Inter_900Black' }} numberOfLines={1} className="text-[9px] uppercase tracking-widest text-textSecondary">
-        {label}
-      </Text>
-      <Text
-        style={{ fontFamily: 'Inter_900Black' }}
-        numberOfLines={1}
-        className={'mt-0.5 text-sm ' + (accent ? 'text-brandBlue' : 'text-textPrimary')}
-      >
-        {value}
-      </Text>
-    </View>
-  )
-}

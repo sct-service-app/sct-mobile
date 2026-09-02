@@ -101,7 +101,7 @@ export default function PackageDetailScreen() {
             {/* resizeMode="contain", а не "cover": заказчик просил показывать
                 картинку пакета целиком — на «cover» у канистры обрезались
                 края и верх этикетки. */}
-            <View className="h-44 w-full bg-white">
+            <View style={{ aspectRatio: 2 }} className="w-full bg-white">
               <SafeImage uri={data.image_url} resizeMode="contain" className="h-full w-full" />
             </View>
           </Card>

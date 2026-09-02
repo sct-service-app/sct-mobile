@@ -31,10 +31,16 @@ export function ServiceCard({ pkg }: { pkg: ClientServicePackage }) {
   return (
     <View className="rounded-sct border border-borderLight bg-white p-5">
       <Pressable onPress={() => router.push(`/services/${pkg.id}`)}>
-        <View className="mb-4 h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-blue-50">
+        {/* Соотношение 2:1 по правке заказчика («все картинки пакетов делать
+            только 2к1»). Раньше был квадрат 48×48, из-за чего канистры
+            обрезались. aspectRatio держит пропорцию на любой ширине карточки. */}
+        <View
+          style={{ aspectRatio: 2 }}
+          className="mb-4 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-50"
+        >
           <SafeImage
             uri={pkg.image_url}
-            resizeMode="cover"
+            resizeMode="contain"
             className="h-full w-full"
             fallback={<Ionicons name={categoryIcon(pkg.category?.code)} size={22} color="#1F5FAF" />}
           />
@@ -61,7 +67,7 @@ export function ServiceCard({ pkg }: { pkg: ClientServicePackage }) {
 
       <Pressable
         onPress={() => router.push(`/services/${pkg.id}`)}
-        className="mt-5 items-center rounded-sct bg-textPrimary px-4 py-3 active:opacity-90"
+        className="mt-5 items-center rounded-sct bg-brandBlue px-4 py-3 active:opacity-90"
       >
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[11px] uppercase tracking-widest text-white">
           Выбрать услугу

@@ -38,7 +38,7 @@ export function DefaultServiceCard({ service }: { service: ClientDefaultServiceP
           {note}
         </Text>
       </View>
-      <View className="mt-5 items-center rounded-sct bg-textPrimary px-4 py-3">
+      <View className="mt-5 items-center rounded-sct bg-brandBlue px-4 py-3">
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[11px] uppercase tracking-widest text-white">
           Рассчитать стоимость
         </Text>

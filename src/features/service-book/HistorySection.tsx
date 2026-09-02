@@ -17,13 +17,15 @@ export function HistorySection({ history }: { history: Booking[] }) {
   if (history.length === 0) {
     return (
       <Card className="items-center border-2 border-dashed border-borderLight bg-surfaceLight p-10">
-        <View className="mb-5 h-16 w-16 items-center justify-center rounded-full bg-white">
-          <Ionicons name="document-text-outline" size={28} color="#94A3B8" />
-        </View>
+        {/* Порядок по правке заказчика: сначала надпись, потом кружок с
+            иконкой по центру, затем пояснение. Раньше иконка была сверху. */}
         <Text style={{ fontFamily: 'Inter_900Black' }} className="text-xl uppercase text-textPrimary">
           История пуста
         </Text>
-        <Text className="mt-2 text-center text-sm text-textSecondary">
+        <View className="my-4 h-16 w-16 items-center justify-center rounded-full bg-white">
+          <Ionicons name="document-text-outline" size={28} color="#94A3B8" />
+        </View>
+        <Text className="text-center text-sm text-textSecondary">
           Здесь появится список выполненных работ после визита.
         </Text>
       </Card>

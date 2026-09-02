@@ -12,12 +12,15 @@ import { Text, View } from 'react-native'
 import { useServiceBookQuery } from '@/features/service-book/queries'
 import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
+import { PlateBadge } from '@/features/service-book/CarHeroCompact'
 import type { ClientActiveCar } from '@/shared/api/types'
 
 export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
   const { data: book } = useServiceBookQuery({})
   const selected = book?.selected_car
-  const photo = selected && selected.id === activeCar.id ? selected.image_url : null
+  const sameCar = selected && selected.id === activeCar.id ? selected : null
+  const photo = sameCar?.image_url ?? null
+  const year = sameCar ? (sameCar.production_year ?? sameCar.generation?.year_from ?? null) : null
 
   return (
     <Card className="flex-row items-center gap-4 p-4">
@@ -45,13 +48,12 @@ export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
           Услуги для {activeCar.car_title}
         </Text>
       </View>
-      {activeCar.license_plate ? (
-        <View className="rounded-md bg-textPrimary px-3 py-1">
-          <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[12px] uppercase tracking-widest text-white">
-            {activeCar.license_plate}
-          </Text>
-        </View>
-      ) : null}
+      {/* Госномер и год — те же рамки, что на «Авто». Год берём из того же
+          selected_car: в ClientActiveCar его нет. */}
+      <View className="items-end gap-1">
+        {activeCar.license_plate ? <PlateBadge>{activeCar.license_plate}</PlateBadge> : null}
+        {year ? <PlateBadge>{String(year)}</PlateBadge> : null}
+      </View>
     </Card>
   )
 }

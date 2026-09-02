@@ -63,15 +63,17 @@ export function HomeHero({ hasCars }: { hasCars: boolean }) {
       <Text style={{ fontFamily: 'Inter_900Black' }} className="text-2xl uppercase leading-tight text-white">
         {title}
       </Text>
-      <Text className="mt-4 text-sm leading-relaxed text-white/70">
+      <Text className="mt-3 text-sm leading-relaxed text-white/70">
         Мы подобрали актуальные пакеты, акции и ближайшие слоты обслуживания для вашего автомобиля.
       </Text>
-      <View className="mt-7 flex-row flex-wrap gap-3">
+      {/* Кнопка «Добавить авто» убрана по правке заказчика: «с главной
+          добавлять авто не нужно, для этого есть вкладка Авто». Блок заодно
+          стал ниже — просили ужать его до кнопки «Записаться на сервис».
+          У клиента без машин вторая кнопка остаётся: иначе добавить первое
+          авто с главной будет нечем. */}
+      <View className="mt-5 flex-row flex-wrap gap-3">
         {hasCars ? (
-          <>
-            <HeroButton label="Записаться на сервис" tone="light" onPress={() => router.push('/services')} />
-            <HeroButton label="Добавить авто" tone="translucent" onPress={() => router.push('/garage/add')} />
-          </>
+          <HeroButton label="Записаться на сервис" tone="light" onPress={() => router.push('/services')} />
         ) : (
           <>
             <HeroButton label="Добавить авто" tone="light" onPress={() => router.push('/garage/add')} />

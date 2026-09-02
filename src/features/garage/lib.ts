@@ -34,9 +34,20 @@ export function getCarPhoto(car: ClientGarageCar): string | null {
     readString(c, 'photo_url') ??
     readString(c, 'image_url') ??
     readString(c, 'image') ??
-    readString(readNested(c, 'mark'), 'logo_url') ??
+    // Фолбэк на mark.logo_url убран: он и рисовал кружки BMW/VW вместо фото
+    // машин, на что жаловался заказчик. Нет фото — показываем заглушку.
     null
   )
+}
+
+/**
+ * Фактический год выпуска. Бэк отдаёт `production_year` во всех ручках гаража
+ * (проверено на проде 2026-09-02), но в сгенерированной schema.ts поля нет —
+ * она отстала. Читаем безопасно, как и остальные поля этого объекта.
+ */
+export function getCarProductionYear(car: ClientGarageCar): number | null {
+  const v = (car as unknown as Record<string, unknown>).production_year
+  return typeof v === 'number' ? v : null
 }
 
 export function getCarTitle(car: ClientGarageCar): string {

@@ -9,6 +9,7 @@ import { useServiceBookQuery } from '@/features/service-book/queries'
 import { useBookingsQuery } from '@/features/bookings/queries'
 import { splitBookings } from '@/features/bookings/lib'
 import { CarHeroCompact } from '@/features/service-book/CarHeroCompact'
+import { CarSpecChips } from '@/features/service-book/CarSpecChips'
 import { RecommendationStrip } from '@/features/service-book/RecommendationStrip'
 import { BookServiceCTA } from '@/features/service-book/BookServiceCTA'
 import { AppointmentRow } from '@/features/service-book/AppointmentRow'
@@ -93,6 +94,9 @@ function ServiceBookInner() {
   return (
     <ScrollView className="flex-1 bg-surfaceLight" contentContainerStyle={{ padding: 16, gap: 16 }}>
       <CarHeroCompact car={data.selected_car} />
+      {/* Плашки пробег/замена масла/ближайший визит — тот же компонент, что
+          на «Главной». Заказчик просил, чтобы они были и здесь. */}
+      <CarSpecChips />
       <RecommendationStrip recommendations={data.service_recommendations} />
       <BookServiceCTA />
       <MyGarageColumn />

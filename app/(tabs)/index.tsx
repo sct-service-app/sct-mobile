@@ -33,8 +33,10 @@ export default function HomeScreen() {
       ) : (
         <>
           <HomeHero hasCars={hasCars} />
-          <MyGarageColumn />
+          {/* Порядок по правке заказчика: приветствие → активное авто →
+              мой гараж → история. Раньше гараж шёл раньше активного авто. */}
           <ActiveCarBlock />
+          <MyGarageColumn />
           <HomePromoBanner />
           {hasCars ? (
             <>

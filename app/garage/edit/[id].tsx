@@ -1,8 +1,16 @@
 /**
  * Редактирование авто (RN-порт pages/EditCarPage.tsx).
  *
- * PATCH /garage/cars/{id}/ принимает `nickname` и `mileage_km`, но пробег из
- * формы убран по просьбе заказчика (2026-08-29): его проставляет сервис при
+ * Единственное редактируемое поле — ФАКТИЧЕСКИЙ ГОД ВЫПУСКА (`production_year`).
+ * Правка заказчика (2026-09-01): «вместо слова псевдоним напишем фактический
+ * год автомобиля, чтобы просто была циферка». Псевдоним из формы убран — им
+ * никто не пользовался, а поле занимало единственный слот. Год выводится
+ * рядом с госномером в такой же чёрной рамке (см. CarHeroCompact).
+ *
+ * Бэк валидирует год по границам поколения: для BMW 02 (E10) примет только
+ * 1966–1977, иначе вернёт 400 с текстом под полем. Это ожидаемо.
+ *
+ * Пробег из формы убран раньше (2026-08-29): его проставляет сервис при
  * обслуживании, и от него считаются рекомендации — клиент не должен его
  * трогать. Текущее значение показываем в шапке карточки только для чтения.
  * Госномер, VIN и модификация тоже readonly (чтобы сменить модификацию, авто
@@ -32,11 +40,17 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { parseApiError } from '@/features/auth/errors'
 import { formatMileage } from '@/shared/lib/format'
-import { getCarPhoto, getCarSubtitle, getCarTitle } from '@/features/garage/lib'
+import { getCarPhoto, getCarProductionYear, getCarSubtitle, getCarTitle } from '@/features/garage/lib'
+import { useCarPhoto } from '@/features/service-book/carPhoto'
+import { PlateBadge } from '@/features/service-book/CarHeroCompact'
 import { toast } from '@/shared/ui/Toast'
 
 const editSchema = z.object({
-  nickname: z.string().trim().max(255, 'Не больше 255 символов'),
+  production_year: z
+    .number({ message: 'Введите год числом' })
+    .int('Только целое число')
+    .min(1900, 'Слишком ранний год')
+    .max(new Date().getFullYear() + 1, 'Слишком поздний год'),
 })
 type EditValues = z.infer<typeof editSchema>
 
@@ -54,6 +68,10 @@ export default function EditCarScreen() {
 function EditCarInner({ id }: { id?: number }) {
   const router = useRouter()
   const { data: car, isLoading, isError } = useCarQuery(id)
+  // Фото берём из service-book: в /garage/cars/ снимка нет. Хук обязан
+  // вызываться до ранних return'ов, поэтому берём id из роута, а не из
+  // ответа — на момент загрузки `car` ещё undefined.
+  const photoFromBook = useCarPhoto(id)
   const updateMut = useUpdateCarMutation(id ?? 0)
   const setDefaultMut = useSetDefaultCarMutation()
   const deleteMut = useDeleteCarMutation()
@@ -68,13 +86,13 @@ function EditCarInner({ id }: { id?: number }) {
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { nickname: '' },
+    defaultValues: { production_year: undefined },
   })
 
   // Подставляем серверные значения, когда машина прогрузится.
   useEffect(() => {
     if (car) {
-      reset({ nickname: car.nickname ?? '' })
+      reset({ production_year: getCarProductionYear(car) ?? undefined })
     }
   }, [car, reset])
 
@@ -103,7 +121,9 @@ function EditCarInner({ id }: { id?: number }) {
     )
   }
 
-  const photo = getCarPhoto(car)
+  // getCarPhoto — фолбэк на случай, если бэк однажды начнёт отдавать снимок
+  // и в /garage/cars/ тоже.
+  const photo = photoFromBook ?? getCarPhoto(car)
   const title = getCarTitle(car)
   const subtitle = getCarSubtitle(car)
 
@@ -113,17 +133,17 @@ function EditCarInner({ id }: { id?: number }) {
       // Шлём ТОЛЬКО реально изменённые поля — не тревожим бэк лишними.
       // PatchedClientGarageCarWriteRequest в OpenAPI ошибочно требует is_default —
       // на бэке поля реально опциональны, поэтому кастуем (как в вебе).
-      const payload: { nickname?: string } = {}
-      if (dirtyFields.nickname) payload.nickname = values.nickname
+      const payload: { production_year?: number } = {}
+      if (dirtyFields.production_year) payload.production_year = values.production_year
 
       await updateMut.mutateAsync(payload as Parameters<typeof updateMut.mutateAsync>[0])
       // Обновляем defaultValues — форма становится «чистой» (Save задизейблится).
-      reset({ nickname: values.nickname })
+      reset({ production_year: values.production_year })
       toast.success('Изменения сохранены')
     } catch (err) {
       const parsed = parseApiError(err, 'Не удалось сохранить изменения.')
       for (const [field, message] of Object.entries(parsed.fields)) {
-        if (field === 'nickname') {
+        if (field === 'production_year') {
           setError(field, { type: 'server', message })
         }
       }
@@ -199,11 +219,12 @@ function EditCarInner({ id }: { id?: number }) {
                 </Text>
               ) : null}
               <View className="mt-3 flex-row flex-wrap items-center gap-2">
-                <View className="rounded-md bg-textPrimary px-3 py-1">
-                  <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[12px] uppercase tracking-widest text-white">
-                    {car.license_plate || '—'}
-                  </Text>
-                </View>
+                <PlateBadge>{car.license_plate || '—'}</PlateBadge>
+                {/* Год в такой же рамке, как на «Авто», «Главной», в гараже и
+                    «Услугах» — единый бейдж на всех экранах. */}
+                {getCarProductionYear(car) ? (
+                  <PlateBadge>{String(getCarProductionYear(car))}</PlateBadge>
+                ) : null}
                 {typeof car.latest_mileage_km === 'number' && car.latest_mileage_km > 0 ? (
                   <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
                     Пробег: {formatMileage(car.latest_mileage_km)}
@@ -227,16 +248,20 @@ function EditCarInner({ id }: { id?: number }) {
 
           <Controller
             control={control}
-            name="nickname"
+            name="production_year"
             render={({ field }) => (
               <Input
-                label="Псевдоним"
-                placeholder="Например: моя машина"
-                hint="Удобное имя для гаража. Не обязательно."
-                value={field.value}
-                onChangeText={field.onChange}
+                label="Фактический год автомобиля"
+                placeholder="2019"
+                keyboardType="number-pad"
+                maxLength={4}
+                value={field.value != null ? String(field.value) : ''}
+                onChangeText={(t) => {
+                  const digits = t.replace(/[^\d]/g, '')
+                  field.onChange(digits ? Number(digits) : undefined)
+                }}
                 onBlur={field.onBlur}
-                error={errors.nickname?.message}
+                error={errors.production_year?.message}
               />
             )}
           />
