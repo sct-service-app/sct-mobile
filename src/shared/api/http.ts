@@ -46,10 +46,23 @@ async function refreshAccessToken(): Promise<string | null> {
       { refresh },
       { headers: { 'Content-Type': 'application/json' } },
     )
-    const refreshData = unwrapEnvelope(response.data) as TokenRefresh | undefined
+    const refreshData = unwrapEnvelope(response.data) as
+      | (TokenRefresh & { refresh?: string })
+      | undefined
     const newAccess = refreshData?.access
     if (typeof newAccess === 'string' && newAccess) {
-      tokenStorage.setAccess(newAccess)
+      // Если бэк включит ROTATE_REFRESH_TOKENS, в ответе приедет и новый
+      // refresh, а старый попадёт в блэклист. Сегодня ротации нет (сверено
+      // на проде 2026-09-02: ответ содержит только `access`), но сохраняем
+      // новый токен на будущее — иначе в день включения ротации у всех
+      // пользователей начнёт выкидывать на экран входа после первого же
+      // обновления, и причину будем искать заново.
+      const rotated = refreshData?.refresh
+      if (typeof rotated === 'string' && rotated) {
+        tokenStorage.setTokens(newAccess, rotated)
+      } else {
+        tokenStorage.setAccess(newAccess)
+      }
       return newAccess
     }
     return null
