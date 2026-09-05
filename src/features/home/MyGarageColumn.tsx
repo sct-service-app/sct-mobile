@@ -146,7 +146,7 @@ function GarageButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className="flex-row items-center justify-center gap-1.5 rounded-md bg-brandBlue px-3 py-2 active:opacity-90"
+      className="flex-row items-center justify-center gap-1.5 rounded-sct bg-brandBlue px-3 py-2 active:opacity-90"
     >
       <Ionicons name={icon} size={12} color="#ffffff" />
       <Text

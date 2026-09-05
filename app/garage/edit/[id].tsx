@@ -1,11 +1,21 @@
 /**
  * Редактирование авто (RN-порт pages/EditCarPage.tsx).
  *
- * Единственное редактируемое поле — ФАКТИЧЕСКИЙ ГОД ВЫПУСКА (`production_year`).
- * Правка заказчика (2026-09-01): «вместо слова псевдоним напишем фактический
- * год автомобиля, чтобы просто была циферка». Псевдоним из формы убран — им
- * никто не пользовался, а поле занимало единственный слот. Год выводится
- * рядом с госномером в такой же чёрной рамке (см. CarHeroCompact).
+ * Редактируемые поля — ГОСНОМЕР и ФАКТИЧЕСКИЙ ГОД ВЫПУСКА.
+ *
+ * Год (`production_year`) — правка заказчика от 01.09: «вместо слова псевдоним
+ * напишем фактический год автомобиля, чтобы просто была циферка». Псевдоним из
+ * формы убран — им никто не пользовался, а поле занимало единственный слот.
+ * Год выводится рядом с госномером в такой же чёрной рамке (см. PlateBadge).
+ *
+ * Госномер (`license_plate`) — правка от 05.09, шеф просил лично: «если я
+ * завтра повешу на эту же машину другой номер, я должен мочь его тут
+ * отредактировать». Проверка та же, что при добавлении авто (казахстанский
+ * формат с регионом), значение нормализуется перед отправкой.
+ *
+ * Сверху — CarSummaryCard: тот же модуль, что на «Главной» (большое фото,
+ * название, номер, год, пробег/замена масла/ближайший визит), но без кнопки
+ * «Записаться на сервис» — тоже правка от 05.09.
  *
  * Бэк валидирует год по границам поколения: для BMW 02 (E10) примет только
  * 1966–1977, иначе вернёт 400 с текстом под полем. Это ожидаемо.
@@ -37,20 +47,30 @@ import { Card } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { Button } from '@/shared/ui/Button'
 import { Spinner } from '@/shared/ui/Spinner'
-import { SafeImage } from '@/shared/ui/SafeImage'
 import { parseApiError } from '@/features/auth/errors'
-import { formatMileage } from '@/shared/lib/format'
-import { getCarPhoto, getCarProductionYear, getCarSubtitle, getCarTitle } from '@/features/garage/lib'
-import { useCarPhoto } from '@/features/service-book/carPhoto'
-import { PlateBadge } from '@/features/service-book/CarHeroCompact'
+import {
+  LICENSE_PLATE_ERROR,
+  isValidLicensePlate,
+  normalizeLicensePlate,
+} from '@/shared/lib/license-plate'
+import { getCarProductionYear } from '@/features/garage/lib'
+import { CarSummaryCard } from '@/features/garage/CarSummaryCard'
 import { toast } from '@/shared/ui/Toast'
 
 const editSchema = z.object({
+  // Формат госномера проверяем НЕ здесь, а в onSubmit и только если поле
+  // трогали: у машин, заведённых до 29.08.2026, в базе лежат огрызки вроде
+  // «577AXG» без региона, и строгая схема не давала бы такому владельцу
+  // сохранить даже год, пока он не перепишет номер.
+  license_plate: z.string().min(1, 'Введите госномер'),
+  // Год необязателен: у большинства машин `production_year` пустой, и
+  // требовать его ради правки одного госномера нельзя.
   production_year: z
     .number({ message: 'Введите год числом' })
     .int('Только целое число')
     .min(1900, 'Слишком ранний год')
-    .max(new Date().getFullYear() + 1, 'Слишком поздний год'),
+    .max(new Date().getFullYear() + 1, 'Слишком поздний год')
+    .optional(),
 })
 type EditValues = z.infer<typeof editSchema>
 
@@ -68,10 +88,6 @@ export default function EditCarScreen() {
 function EditCarInner({ id }: { id?: number }) {
   const router = useRouter()
   const { data: car, isLoading, isError } = useCarQuery(id)
-  // Фото берём из service-book: в /garage/cars/ снимка нет. Хук обязан
-  // вызываться до ранних return'ов, поэтому берём id из роута, а не из
-  // ответа — на момент загрузки `car` ещё undefined.
-  const photoFromBook = useCarPhoto(id)
   const updateMut = useUpdateCarMutation(id ?? 0)
   const setDefaultMut = useSetDefaultCarMutation()
   const deleteMut = useDeleteCarMutation()
@@ -86,13 +102,16 @@ function EditCarInner({ id }: { id?: number }) {
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<EditValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { production_year: undefined },
+    defaultValues: { license_plate: '', production_year: undefined },
   })
 
   // Подставляем серверные значения, когда машина прогрузится.
   useEffect(() => {
     if (car) {
-      reset({ production_year: getCarProductionYear(car) ?? undefined })
+      reset({
+        license_plate: car.license_plate ?? '',
+        production_year: getCarProductionYear(car) ?? undefined,
+      })
     }
   }, [car, reset])
 
@@ -121,29 +140,35 @@ function EditCarInner({ id }: { id?: number }) {
     )
   }
 
-  // getCarPhoto — фолбэк на случай, если бэк однажды начнёт отдавать снимок
-  // и в /garage/cars/ тоже.
-  const photo = photoFromBook ?? getCarPhoto(car)
-  const title = getCarTitle(car)
-  const subtitle = getCarSubtitle(car)
-
   const onSubmit = async (values: EditValues) => {
     setServerError(null)
     try {
       // Шлём ТОЛЬКО реально изменённые поля — не тревожим бэк лишними.
       // PatchedClientGarageCarWriteRequest в OpenAPI ошибочно требует is_default —
       // на бэке поля реально опциональны, поэтому кастуем (как в вебе).
-      const payload: { production_year?: number } = {}
-      if (dirtyFields.production_year) payload.production_year = values.production_year
+      const payload: { production_year?: number; license_plate?: string } = {}
+      if (dirtyFields.license_plate) {
+        if (!isValidLicensePlate(values.license_plate)) {
+          setError('license_plate', { type: 'validate', message: LICENSE_PLATE_ERROR })
+          return
+        }
+        payload.license_plate = normalizeLicensePlate(values.license_plate)
+      }
+      if (dirtyFields.production_year && values.production_year != null) {
+        payload.production_year = values.production_year
+      }
 
       await updateMut.mutateAsync(payload as Parameters<typeof updateMut.mutateAsync>[0])
       // Обновляем defaultValues — форма становится «чистой» (Save задизейблится).
-      reset({ production_year: values.production_year })
+      reset({
+        license_plate: normalizeLicensePlate(values.license_plate),
+        production_year: values.production_year,
+      })
       toast.success('Изменения сохранены')
     } catch (err) {
       const parsed = parseApiError(err, 'Не удалось сохранить изменения.')
       for (const [field, message] of Object.entries(parsed.fields)) {
-        if (field === 'production_year') {
+        if (field === 'production_year' || field === 'license_plate') {
           setError(field, { type: 'server', message })
         }
       }
@@ -189,65 +214,32 @@ function EditCarInner({ id }: { id?: number }) {
   return (
     <View className="flex-1 bg-surfaceLight">
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
-        {/* Hero авто */}
-        <Card className="p-5">
-          {car.is_default ? (
-            <View className="mb-4 flex-row items-center gap-1.5 self-start rounded-lg bg-brandBlue px-2.5 py-1">
-              <View className="h-1.5 w-1.5 rounded-full bg-brandYellow" />
-              <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-white">
-                Активное авто
-              </Text>
-            </View>
-          ) : null}
-          <View className="flex-row items-center gap-5">
-            <View className="h-24 w-24 items-center justify-center overflow-hidden rounded-sct border border-borderLight bg-surfaceLight">
-              <SafeImage
-                uri={photo}
-                resizeMode="cover"
-                className="h-full w-full"
-                fallback={
-                  <Text style={{ fontFamily: 'Inter_900Black' }} className="text-2xl uppercase text-borderLight">
-                    {title.slice(0, 2)}
-                  </Text>
-                }
-              />
-            </View>
-            <View className="flex-1">
-              <Text style={{ fontFamily: 'Inter_900Black' }} numberOfLines={2} className="text-2xl uppercase leading-none text-textPrimary">
-                {title}
-              </Text>
-              {subtitle ? (
-                <Text style={{ fontFamily: 'Inter_700Bold' }} numberOfLines={1} className="mt-1 text-[12px] uppercase text-textSecondary">
-                  {subtitle}
-                </Text>
-              ) : null}
-              <View className="mt-3 flex-row flex-wrap items-center gap-2">
-                <PlateBadge>{car.license_plate || '—'}</PlateBadge>
-                {/* Год в такой же рамке, как на «Авто», «Главной», в гараже и
-                    «Услугах» — единый бейдж на всех экранах. */}
-                {getCarProductionYear(car) ? (
-                  <PlateBadge>{String(getCarProductionYear(car))}</PlateBadge>
-                ) : null}
-                {typeof car.latest_mileage_km === 'number' && car.latest_mileage_km > 0 ? (
-                  <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
-                    Пробег: {formatMileage(car.latest_mileage_km)}
-                  </Text>
-                ) : null}
-              </View>
-              {car.vin_code ? (
-                <Text className="mt-2 text-[10px] uppercase tracking-widest text-textSecondary">
-                  VIN: {car.vin_code}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        </Card>
+        {/* Сводка по авто — модуль с «Главной» без кнопки записи (правка 05.09). */}
+        <CarSummaryCard car={car} />
 
         {/* Форма редактирования */}
         <Card className="gap-5 p-5">
           <Text style={{ fontFamily: 'Inter_900Black' }} className="text-base uppercase text-textPrimary">
             Редактируемые поля
           </Text>
+
+          <Controller
+            control={control}
+            name="license_plate"
+            render={({ field }) => (
+              <Input
+                label="Госномер"
+                placeholder="123ABC02"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={12}
+                value={field.value ?? ''}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.license_plate?.message}
+              />
+            )}
+          />
 
           <Controller
             control={control}

@@ -14,8 +14,12 @@ import { useServiceBookQuery } from './queries'
 import { findRecommendation } from './recommendations'
 import { formatDateTime, formatMileage } from '@/shared/lib/format'
 
-export function CarSpecChips() {
-  const { data } = useServiceBookQuery({})
+export function CarSpecChips({ carId }: { carId?: number } = {}) {
+  // Без carId — активное авто (главная, вкладка «Авто»). С carId — конкретная
+  // машина: экран редактирования открывается и для неактивной, а рекомендации
+  // и ближайший визит лежат в page-data только для выбранной, поэтому просим
+  // бэк отдать книжку именно по ней.
+  const { data } = useServiceBookQuery(carId ? { car_id: carId } : {})
   const car = data?.selected_car
   if (!car) return null
 
