@@ -95,6 +95,13 @@ export function useUpdateCarMutation(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: garageKeys.cars() })
       qc.invalidateQueries({ queryKey: garageKeys.car(id) })
+      // Госномер и год выводятся на «Главной», «Авто», «Услугах» и в «Моём
+      // гараже», а их кормит service-book/page-data. Пока в форме правили
+      // только псевдоним и пробег, этого никто не замечал; с 05.09 правится
+      // госномер — без этих двух строк он менялся ТОЛЬКО на экране
+      // редактирования, а везде оставался старый до перезапуска приложения.
+      qc.invalidateQueries({ queryKey: ['service-book'] })
+      qc.invalidateQueries({ queryKey: ['packages'] })
     },
   })
 }
