@@ -38,6 +38,8 @@ export interface ClientDefaultServicePage {
   why_price_depends?: string[] | string
   is_featured?: boolean
   sort_order?: number
+  /** Картинка услуги (PR #11). Нет картинки — пустая строка, а не null. */
+  image_url?: string
 }
 
 /**

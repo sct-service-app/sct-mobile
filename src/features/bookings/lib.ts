@@ -47,3 +47,35 @@ export function splitBookings(bookings: Booking[], now: Date = new Date()): Spli
   const history = bookings.filter((b) => !isUpcomingBooking(b, now))
   return { next: upcoming[0] ?? null, upcoming: upcoming.slice(1), history }
 }
+
+/** Поля времени, общие у записи (`Booking`) и визита из page-data (`Appointment`). */
+interface VisitTimes {
+  final_datetime: string | null
+  scheduled_datetime: string | null
+  preferred_datetime: string | null
+  scheduled_end_datetime?: string | null
+  duration_minutes?: number | null
+}
+
+/**
+ * Начало и конец визита. Конец бэк отдаёт с PR #11 (`scheduled_end_datetime`),
+ * у старых записей его нет — тогда `end` = null и показываем только начало.
+ *
+ * Конец посчитан от `scheduled_datetime`. Если сотрудник проставил другое
+ * фактическое время (`final_datetime`), сдвигаем конец на длительность от
+ * него, а без длительности конец не показываем вовсе — врать не будем.
+ */
+export function visitTimeRange(v: VisitTimes): { start: string | null; end: string | null } {
+  const start = v.final_datetime ?? v.scheduled_datetime ?? v.preferred_datetime
+  let end = v.scheduled_end_datetime ?? null
+  if (start && end && v.scheduled_datetime && !sameInstant(start, v.scheduled_datetime)) {
+    end = v.duration_minutes
+      ? new Date(new Date(start).getTime() + v.duration_minutes * 60_000).toISOString()
+      : null
+  }
+  return { start, end }
+}
+
+function sameInstant(a: string, b: string): boolean {
+  return new Date(a).getTime() === new Date(b).getTime()
+}

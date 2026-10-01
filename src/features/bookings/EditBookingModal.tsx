@@ -18,6 +18,7 @@ import { toast } from '@/shared/ui/Toast'
 import { BranchStep } from '@/features/booking-wizard/BranchStep'
 import { DateTimeStep } from '@/features/booking-wizard/DateTimeStep'
 import { localIsoToUtcIso } from '@/features/booking-wizard/lib'
+import { useSlotsApiEnabled } from '@/features/booking-wizard/queries'
 import { parseApiError } from '@/features/auth/errors'
 import { formatDateTime } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/cn'
@@ -34,7 +35,11 @@ interface EditBookingModalProps {
 }
 
 export function EditBookingModal({ open, onClose, booking }: EditBookingModalProps) {
-  const [tab, setTab] = useState<EditTab>('datetime')
+  // С бэк PR #11 перенос времени и смену филиала отключаем: клиентский PATCH
+  // пока не перераспределяет бокс, и запись можно перенести туда, где все
+  // боксы заняты. Остаётся комментарий. Вернуть, когда бэк это починит.
+  const canReschedule = useSlotsApiEnabled() === false
+  const [tab, setTab] = useState<EditTab>(canReschedule ? 'datetime' : 'comment')
   const [branch, setBranch] = useState<ServiceStation | null>(null)
   const [date, setDate] = useState<string | null>(null)
   const [slot, setSlot] = useState<string | null>(null) // localIso
@@ -47,13 +52,13 @@ export function EditBookingModal({ open, onClose, booking }: EditBookingModalPro
   // booking'а, а не последний черновик из предыдущего открытия.
   useEffect(() => {
     if (!open) return
-    setTab('datetime')
+    setTab(canReschedule ? 'datetime' : 'comment')
     setBranch(null)
     setDate(null)
     setSlot(null)
     setComment(booking.comment || '')
     setServerError(null)
-  }, [open, booking.id, booking.comment])
+  }, [open, booking.id, booking.comment, canReschedule])
 
   const hasChanges = Boolean(branch) || Boolean(slot) || comment !== (booking.comment || '')
 
@@ -95,8 +100,9 @@ export function EditBookingModal({ open, onClose, booking }: EditBookingModalPro
   return (
     <Modal open={open} onClose={onClose} title="Изменить запись" disableOverlayClose>
       <Text className="-mt-1 mb-4 text-sm text-textSecondary">
-        Можно изменить филиал, дату/время или комментарий. Поля, которые не
-        трогаете, останутся как есть.
+        {canReschedule
+          ? 'Можно изменить филиал, дату/время или комментарий. Поля, которые не трогаете, останутся как есть.'
+          : 'Можно изменить комментарий к визиту. Чтобы перенести время или сменить филиал, отмените запись и создайте новую — так мы подберём свободный бокс.'}
       </Text>
 
       {/* Текущая запись (read-only) */}
@@ -108,12 +114,16 @@ export function EditBookingModal({ open, onClose, booking }: EditBookingModalPro
 
       {/* Вкладки */}
       <View className="mb-4 flex-row gap-4 border-b border-borderLight pb-3">
-        <TabButton current={tab} value="datetime" onPress={setTab}>
-          Дата/время
-        </TabButton>
-        <TabButton current={tab} value="branch" onPress={setTab}>
-          Филиал
-        </TabButton>
+        {canReschedule ? (
+          <>
+            <TabButton current={tab} value="datetime" onPress={setTab}>
+              Дата/время
+            </TabButton>
+            <TabButton current={tab} value="branch" onPress={setTab}>
+              Филиал
+            </TabButton>
+          </>
+        ) : null}
         <TabButton current={tab} value="comment" onPress={setTab}>
           Комментарий
         </TabButton>

@@ -89,6 +89,11 @@ export interface ServiceBookCar {
   id: number
   display_name: string
   full_car_title: string
+  /**
+   * Готовое длинное название от бэка (PR #11): «BMW X7 | G07 | 2022-2026
+   * Рестайлинг | …». До его деплоя поля нет — см. `pickCarTitle`.
+   */
+  customer_car_title?: string
   license_plate: string
   vin_code: string | null
   nickname: string
@@ -152,6 +157,9 @@ export interface Appointment {
   preferred_datetime: string | null
   scheduled_datetime: string | null
   final_datetime: string | null
+  /** Конец визита и длительность (PR #11), у старых записей null. */
+  scheduled_end_datetime?: string | null
+  duration_minutes?: number | null
   address: string
   comment: string
   cancel_reason: string
@@ -196,6 +204,13 @@ export interface ServiceBookActions {
   page_api: string
   bookings_list_api: string
   create_booking_api: string
+  /**
+   * Появляется с бэк PR #11. По наличию этого поля включаем запись по
+   * реальной занятости боксов (GET available-slots) вместо нарезки часов
+   * работы на фронте — так приложение переживает и старый, и новый бэк
+   * (OTA доходит не мгновенно, поэтому выкатываемся раньше бэка).
+   */
+  available_slots_api?: string
 }
 
 export interface ServiceBookMeta {

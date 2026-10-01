@@ -23,6 +23,7 @@ import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Skeleton } from '@/shared/ui/Skeleton'
 import type { ServiceBookCar } from '@/features/service-book/types'
+import { pickCarTitle } from '@/features/garage/lib'
 
 export function MyGarageColumn() {
   const router = useRouter()
@@ -79,7 +80,7 @@ function CarRow({
   isPending: boolean
 }) {
   const year = useCarYear(car.id)
-  const title = car.full_car_title || car.display_name || 'Автомобиль'
+  const title = pickCarTitle(car)
 
   return (
     <View className="rounded-sct border border-borderLight bg-white p-3">

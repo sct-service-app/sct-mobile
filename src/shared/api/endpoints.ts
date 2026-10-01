@@ -43,6 +43,8 @@ export const endpoints = {
   bookingCancel: (id: number) =>
     `/api/v1/client_endpoints/service-book/bookings/${id}/cancel/`,
   createBooking: '/api/v1/client_endpoints/service-book/create_booking/',
+  // Свободные старты на дату с учётом занятости боксов (бэк PR #11).
+  availableSlots: '/api/v1/client_endpoints/service-book/available-slots/',
 
   // --- Клиент: филиалы (service stations) ---
   serviceStations: '/api/v1/client_endpoints/service_stations/',

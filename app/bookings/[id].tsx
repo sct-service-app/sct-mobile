@@ -14,9 +14,9 @@ import { Card } from '@/shared/ui/Card'
 import { Button } from '@/shared/ui/Button'
 import { BottomBar } from '@/shared/ui/BottomBar'
 import { parseApiError } from '@/features/auth/errors'
-import { formatDateTime, formatMileage } from '@/shared/lib/format'
+import { formatDateTimeRange, formatDuration, formatMileage } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/cn'
-import { isBookingCancelled } from '@/features/bookings/lib'
+import { isBookingCancelled, visitTimeRange } from '@/features/bookings/lib'
 
 export default function BookingDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>()
@@ -65,7 +65,8 @@ function BookingInner({ id }: { id?: number }) {
     )
   }
 
-  const dt = data.final_datetime ?? data.scheduled_datetime ?? data.preferred_datetime
+  const { start: dt, end: dtEnd } = visitTimeRange(data)
+  const duration = formatDuration(data.duration_minutes)
   const title =
     data.service_data?.title || data.service_package_data?.title || data.service_package_title_snapshot || 'Услуга'
   const carTitle = data.car?.title || data.car_title_snapshot
@@ -104,7 +105,8 @@ function BookingInner({ id }: { id?: number }) {
             {title}
           </Text>
           <Text style={{ fontFamily: 'Inter_700Bold' }} className="mt-2 text-sm uppercase tracking-wide text-brandBlue">
-            {dt ? formatDateTime(dt) : 'Дата уточняется'}
+            {dt ? formatDateTimeRange(dt, dtEnd) : 'Дата уточняется'}
+            {dt && duration ? ` · ${duration}` : ''}
           </Text>
 
           <View className="mt-5 gap-3">

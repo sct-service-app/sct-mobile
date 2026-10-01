@@ -17,6 +17,7 @@ import { RequireAuth } from '@/shared/ui/RequireAuth'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Card } from '@/shared/ui/Card'
 import { Button } from '@/shared/ui/Button'
+import { SafeImage } from '@/shared/ui/SafeImage'
 import { BottomBar } from '@/shared/ui/BottomBar'
 
 /** Нейтральные шаги процесса — в API их нет, одинаковы для любой услуги. */
@@ -75,6 +76,15 @@ function DefaultServiceInner({ id }: { id?: number }) {
         {/* Hero */}
         <Card className="overflow-hidden p-5">
           <View style={{ backgroundColor: accent }} className="absolute inset-x-0 top-0 h-1.5" />
+          {/* Картинка услуги (бэк PR #11). Пустая строка — картинки нет. */}
+          {data.image_url ? (
+            <View
+              style={{ aspectRatio: 2 }}
+              className="mb-4 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-50"
+            >
+              <SafeImage uri={data.image_url} resizeMode="contain" className="h-full w-full" />
+            </View>
+          ) : null}
           <View className="flex-row flex-wrap gap-2">
             <Pill className="bg-blue-50" textClassName="text-brandBlue">Услуга для вашего авто</Pill>
             {data.category?.name ? (

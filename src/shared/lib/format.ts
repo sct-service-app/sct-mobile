@@ -70,6 +70,35 @@ export function formatDateTime(iso: string | null | undefined): string {
 }
 
 /**
+ * Начало + конец визита → "12 Апр, 16:00–18:00". Конца нет (старые записи,
+ * у них `scheduled_end_datetime` = null) или он кривой — "12 Апр, 16:00".
+ */
+export function formatDateTimeRange(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): string {
+  const base = formatDateTime(start)
+  if (!start || !end || base === '—') return base
+  try {
+    const s = parseISO(start)
+    const e = parseISO(end)
+    if (!(e.getTime() > s.getTime())) return base
+    return `${base}–${format(e, 'HH:mm', { locale: ru })}`
+  } catch {
+    return base
+  }
+}
+
+/** Длительность услуги: 30 → "30 мин", 120 → "2 ч", 90 → "1 ч 30 мин". */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (!minutes || minutes <= 0) return ''
+  if (minutes < 60) return `${minutes} мин`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m ? `${h} ч ${m} мин` : `${h} ч`
+}
+
+/**
  * Маска госномера: убираем лишние пробелы, переводим в верхний регистр.
  * Сам ввод не блокируем (бэк сам валидирует по pattern), просто причёсываем.
  */

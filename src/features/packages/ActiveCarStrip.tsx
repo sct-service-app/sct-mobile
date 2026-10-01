@@ -15,6 +15,7 @@ import { SafeImage } from '@/shared/ui/SafeImage'
 import { PlateBadge } from '@/features/service-book/CarHeroCompact'
 import { useCarYear } from '@/features/garage/carYear'
 import type { ClientActiveCar } from '@/shared/api/types'
+import { pickCarTitle } from '@/features/garage/lib'
 
 export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
   const { data: book } = useServiceBookQuery({})
@@ -46,7 +47,7 @@ export function ActiveCarStrip({ activeCar }: { activeCar: ClientActiveCar }) {
           numberOfLines={2}
           className="mt-1 text-base uppercase leading-tight text-textPrimary"
         >
-          Услуги для {activeCar.car_title}
+          Услуги для {pickCarTitle(activeCar)}
         </Text>
       </View>
       {/* Госномер и год — те же рамки, что на «Авто». Год берём из того же

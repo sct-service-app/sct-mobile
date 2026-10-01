@@ -15,6 +15,7 @@ import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Skeleton } from '@/shared/ui/Skeleton'
 import { formatMileage } from '@/shared/lib/format'
+import { pickCarTitle } from '@/features/garage/lib'
 
 export function ActiveCarBlock() {
   const { data, isLoading } = useServiceBookQuery({ status: 'all', period: 'upcoming', limit: 1, offset: 0 })
@@ -37,7 +38,7 @@ export function ActiveCarBlock() {
         : topRec.title
     : null
   const next = data?.next_appointment
-  const title = car.full_car_title || car.display_name
+  const title = pickCarTitle(car)
 
   return (
     <Card className="overflow-hidden p-0">

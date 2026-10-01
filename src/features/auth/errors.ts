@@ -86,26 +86,58 @@ export interface ParsedApiError {
   code: string | null
   /** HTTP-статус ответа — null, если ответа не было (сеть/таймаут). */
   status: number | null
+  /**
+   * Коды ошибок по полям. Бэк (с PR #11) шлёт по полю не только строку, но и
+   * объект `{code, message}` — например
+   * `preferred_datetime: {code: "BOOKING_SLOT_UNAVAILABLE", message: "…"}`.
+   * Текст из `message` уходит в `fields`, код — сюда.
+   */
+  fieldCodes: Record<string, string>
 }
 
-function joinList(value: unknown): string | null {
+/** Одно сообщение: строка или объект `{code, message}`. */
+function messageOf(value: unknown): string | null {
   if (typeof value === 'string') return translateApiMessage(value)
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const msg = (value as Record<string, unknown>).message
+    if (typeof msg === 'string' && msg) return translateApiMessage(msg)
+  }
+  return null
+}
+
+/** Значение поля ошибки: строка, объект `{code, message}` или массив из них. */
+function joinList(value: unknown): string | null {
   if (Array.isArray(value)) {
-    const parts = value
-      .filter((v): v is string => typeof v === 'string')
-      .map(translateApiMessage)
+    const parts = value.map(messageOf).filter((v): v is string => Boolean(v))
     return parts.length ? parts.join(' ') : null
+  }
+  return messageOf(value)
+}
+
+/** Машиночитаемый код из `{code, message}` (или первого такого в массиве). */
+function codeOf(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    for (const v of value) {
+      const c = codeOf(v)
+      if (c) return c
+    }
+    return null
+  }
+  if (value && typeof value === 'object') {
+    const c = (value as Record<string, unknown>).code
+    if (typeof c === 'string' && c) return c
   }
   return null
 }
 
 export function parseApiError(err: unknown, fallback: string): ParsedApiError {
   const fields: Record<string, string> = {}
+  const fieldCodes: Record<string, string> = {}
   let general: string | null = null
   let code: string | null = null
 
   if (!(err instanceof AxiosError)) {
-    return { general: fallback, fields, code: null, status: null }
+    return { general: fallback, fields, code: null, status: null, fieldCodes }
   }
 
   // Сетевые / таймаут / CORS — нет response.
@@ -117,6 +149,7 @@ export function parseApiError(err: unknown, fallback: string): ParsedApiError {
       fields,
       code: null,
       status: null,
+      fieldCodes,
     }
   }
 
@@ -153,6 +186,8 @@ export function parseApiError(err: unknown, fallback: string): ParsedApiError {
         if (msg) generalParts.push(msg)
       } else if (details && typeof details === 'object') {
         for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
+          const fieldCode = codeOf(value)
+          if (fieldCode) fieldCodes[key] = fieldCode
           const msg = joinList(value)
           if (!msg) continue
           if (key === 'non_field_errors' || key === 'detail') {
@@ -177,6 +212,8 @@ export function parseApiError(err: unknown, fallback: string): ParsedApiError {
 
       for (const [key, value] of Object.entries(obj)) {
         if (key === 'detail' || key === 'non_field_errors') continue
+        const fieldCode = codeOf(value)
+        if (fieldCode) fieldCodes[key] = fieldCode
         const msg = joinList(value)
         if (msg) fields[key] = msg
       }
@@ -187,7 +224,16 @@ export function parseApiError(err: unknown, fallback: string): ParsedApiError {
     general = status >= 500 ? 'Ошибка сервера. Попробуйте позже.' : fallback
   }
 
-  return { general, fields, code, status }
+  return { general, fields, code, status, fieldCodes }
+}
+
+/**
+ * Есть ли среди ошибки нужный код — в конверте (`error.code`) или по
+ * любому полю (`preferred_datetime: {code, …}`). Где именно бэк положит код
+ * брони, до конца не известно, поэтому смотрим везде.
+ */
+export function hasApiErrorCode(parsed: ParsedApiError, wanted: string): boolean {
+  return parsed.code === wanted || Object.values(parsed.fieldCodes).includes(wanted)
 }
 
 /**

@@ -3,15 +3,25 @@
  *
  * Сверху — горизонтальная лента дней из расписания выбранного филиала
  * (14 дней). Выходные/закрытые — disabled. Под ней — слоты с разделением
- * «Утро / День / Вечер». Для сегодняшнего дня прошедшие слоты заблокированы.
+ * «Утро / День / Вечер».
+ *
+ * Откуда время:
+ *  - передан `service` (бэк с PR #11) — GET available-slots на выбранную
+ *    дату, показываем только то, что вернул бэк: занятое и прошедшее он уже
+ *    отсёк, длительность услуги учёл;
+ *  - нет `service` — старая нарезка часов работы по 30 минут, для сегодня
+ *    прошедшие слоты заблокированы. Уберём после деплоя PR #11.
  */
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useServiceStationQuery } from '@/features/service-stations/queries'
 import { Spinner } from '@/shared/ui/Spinner'
 import { Card } from '@/shared/ui/Card'
 import { cn } from '@/shared/lib/cn'
-import { buildTimeSlots, dayShortLabel, groupSlotsByPeriod, type TimeSlot } from './lib'
+import { formatDuration } from '@/shared/lib/format'
+import { buildTimeSlots, dayShortLabel, groupSlotsByPeriod, slotsFromApi, type TimeSlot } from './lib'
+import { useAvailableSlotsQuery } from './queries'
+import type { AvailableSlotsParams, SlotsService } from './api'
 import type { StationScheduleDay } from '@/features/service-stations/types'
 
 interface DateTimeStepProps {
@@ -19,13 +29,28 @@ interface DateTimeStepProps {
   selectedDate: string | null
   selectedSlot: string | null
   onChange: (date: string | null, slot: string | null) => void
+  /** Услуга для available-slots. Не передана — старая нарезка часов работы. */
+  service?: SlotsService | null
 }
 
-export function DateTimeStep({ branchId, selectedDate, selectedSlot, onChange }: DateTimeStepProps) {
+export function DateTimeStep({ branchId, selectedDate, selectedSlot, onChange, service }: DateTimeStepProps) {
   const { data, isLoading, isError } = useServiceStationQuery(branchId, 14)
 
   // Минимальное допустимое время для is_today — сейчас + 30 минут.
   const firstAllowed = useMemo(() => new Date(Date.now() + 30 * 60_000), [])
+
+  const slotsParams: AvailableSlotsParams | null =
+    service && selectedDate ? { ...service, service_station_id: branchId, date: selectedDate } : null
+  const slotsQuery = useAvailableSlotsQuery(slotsParams)
+  const apiData = slotsQuery.data
+
+  // Выбранное время пропало из свежего ответа (его заняли, пока человек
+  // думал, или после отказа create_booking) — снимаем выбор, чтобы «Далее»
+  // не пропустил дальше с несуществующим слотом.
+  useEffect(() => {
+    if (!service || !selectedSlot || !apiData) return
+    if (!apiData.slots.some((s) => s.datetime === selectedSlot)) onChange(selectedDate, null)
+  }, [service, selectedSlot, selectedDate, apiData, onChange])
 
   if (isLoading) {
     return (
@@ -46,10 +71,19 @@ export function DateTimeStep({ branchId, selectedDate, selectedSlot, onChange }:
   }
 
   const selectedDay = data.schedule.find((d) => d.date === selectedDate) ?? null
-  const slots = selectedDay
-    ? buildTimeSlots(selectedDay, selectedDay.is_today ? firstAllowed : undefined)
-    : []
+  // Страховка на первый деплой PR #11: ручка слотов упала или ответила не той
+  // формой — не блокируем запись, а режем часы работы, как раньше. Время всё
+  // равно перепроверит create_booking (и ответит BOOKING_SLOT_UNAVAILABLE).
+  const slotsFallback = Boolean(service) && !apiData && slotsQuery.isError
+  const slots: TimeSlot[] = !selectedDay
+    ? []
+    : service && !slotsFallback
+    ? apiData
+      ? slotsFromApi(apiData)
+      : []
+    : buildTimeSlots(selectedDay, selectedDay.is_today ? firstAllowed : undefined)
   const { morning, day, evening } = groupSlotsByPeriod(slots)
+  const duration = formatDuration(apiData?.duration_minutes)
 
   return (
     <View className="gap-7">
@@ -62,7 +96,9 @@ export function DateTimeStep({ branchId, selectedDate, selectedSlot, onChange }:
           <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-textPrimary">
             {data.name}
           </Text>
-          . Слоты по 30 минут.
+          {service && !slotsFallback
+            ? `. Показываем только свободное время${duration ? ` · услуга занимает ${duration}` : ''}.`
+            : '. Слоты по 30 минут.'}
         </Text>
       </View>
 
@@ -92,16 +128,30 @@ export function DateTimeStep({ branchId, selectedDate, selectedSlot, onChange }:
 
       {/* Слоты */}
       {selectedDay ? (
-        slots.length === 0 ? (
+        // isPending, а не isLoading: запрос в паузе (нет сети) — это «ещё не
+        // знаем», а не «времени нет».
+        service && !slotsFallback && slotsQuery.isPending ? (
+          <View className="min-h-[120px] items-center justify-center">
+            <Spinner />
+          </View>
+        ) : slots.length === 0 ? (
           <Card className="p-4">
             <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-center text-sm text-textSecondary">
               {selectedDay.is_closed
                 ? 'В этот день филиал закрыт.'
+                : service
+                ? 'На выбранную дату свободного времени нет. Попробуйте другую дату.'
                 : 'На этот день нет доступных слотов.'}
             </Text>
           </Card>
         ) : (
           <View className="gap-5">
+            {slotsFallback ? (
+              <Text className="text-xs text-textSecondary">
+                Не удалось проверить занятость — показываем часы работы филиала. Свободно ли
+                время, проверим при подтверждении.
+              </Text>
+            ) : null}
             <SlotGroup
               title="Утро"
               hint="до 12:00"
@@ -206,12 +256,12 @@ function SlotGroup({
       </Text>
       <View className="flex-row flex-wrap gap-2">
         {slots.map((slot) => {
-          const isSelected = selected === slot.localIso
+          const isSelected = selected === slot.value
           return (
             <Pressable
-              key={slot.localIso}
+              key={slot.value}
               disabled={slot.inPast}
-              onPress={() => onSelect(slot.localIso)}
+              onPress={() => onSelect(slot.value)}
               className={cn(
                 'w-[31%] items-center rounded-sct border px-2 py-3',
                 slot.inPast

@@ -11,6 +11,12 @@
  * service_station_id, client_comment }. Пробег в дизайне не запрашивается.
  *
  * Ветка ?type=default шлёт default_service_page_id (для дефолтных услуг).
+ *
+ * Время: с бэк PR #11 (флаг `useSlotsApiEnabled`) — только свободные старты
+ * из available-slots, `preferred_datetime` уходит строкой бэка как есть.
+ * Бокс бэк выбирает сам. Если слот заняли, пока человек подтверждал, бэк
+ * отвечает BOOKING_SLOT_UNAVAILABLE — возвращаем на шаг времени со свежим
+ * списком. Без флага — старая нарезка часов работы.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
@@ -23,7 +29,7 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { Textarea } from '@/shared/ui/Textarea'
 import { cn } from '@/shared/lib/cn'
-import { formatDateTime, formatMoney } from '@/shared/lib/format'
+import { formatDateTimeRange, formatDuration, formatMoney } from '@/shared/lib/format'
 import { usePackageQuery, useDefaultServiceQuery } from '@/features/packages/queries'
 import { getPackageShortTitle } from '@/features/packages/lib'
 import { useCarsQuery } from '@/features/garage/queries'
@@ -32,7 +38,9 @@ import { useCreateBookingMutation } from '@/features/bookings/queries'
 import { parseApiError } from '@/features/auth/errors'
 import { BranchStep } from '@/features/booking-wizard/BranchStep'
 import { DateTimeStep } from '@/features/booking-wizard/DateTimeStep'
-import { localIsoToUtcIso } from '@/features/booking-wizard/lib'
+import { bookingConflict, slotToIso } from '@/features/booking-wizard/lib'
+import { useAvailableSlotsQuery, useSlotsApiEnabled } from '@/features/booking-wizard/queries'
+import type { SlotsService } from '@/features/booking-wizard/api'
 import { buildGoogleCalendarUrl } from '@/shared/lib/calendar'
 import type { ServiceStation } from '@/features/service-stations/types'
 import type { ClientPackageItem } from '@/shared/api/types'
@@ -68,6 +76,28 @@ function BookServiceWizard() {
   const [comment, setComment] = useState('')
   const [serverError, setServerError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  // П.2 ТЗ: «понимаю, что возможна живая очередь». Только блокирует кнопку,
+  // на бэк не уходит (так договорились с бэком).
+  const [queueAck, setQueueAck] = useState(false)
+
+  const slotsApi = useSlotsApiEnabled()
+  const slotsService: SlotsService | null =
+    slotsApi && packageId
+      ? isDefault
+        ? { default_service_page_id: packageId }
+        : { service_package_id: packageId }
+      : null
+  // Тот же запрос, что внутри DateTimeStep (общий кэш, второго похода нет):
+  // нужен для длительности на подтверждении и перезапроса после отказа.
+  const slotsQuery = useAvailableSlotsQuery(
+    slotsService && selectedBranch && selectedDate
+      ? { ...slotsService, service_station_id: selectedBranch.id, date: selectedDate }
+      : null,
+  )
+  const durationMin = slotsService ? slotsQuery.data?.duration_minutes ?? null : null
+  const slotIso = selectedSlot ? slotToIso(selectedSlot) : null
+  const slotEndIso =
+    slotIso && durationMin ? new Date(new Date(slotIso).getTime() + durationMin * 60_000).toISOString() : null
 
   // Авто: из ?car_id=, иначе активное (is_default), иначе первое.
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null)
@@ -86,7 +116,7 @@ function BookServiceWizard() {
   }, [carsQuery.data, urlCarId, selectedCarId])
 
   // === Загрузка ===
-  if (sourceQuery.isLoading || carsQuery.isLoading) {
+  if (sourceQuery.isLoading || carsQuery.isLoading || slotsApi === null) {
     return (
       <View className="flex-1 items-center justify-center bg-surfaceLight">
         <Spinner />
@@ -141,7 +171,8 @@ function BookServiceWizard() {
   const price = isDefault
     ? dsData?.price_note || 'Цена рассчитывается индивидуально'
     : formatMoney(pkgData!.final_price, pkgData!.currency)
-  const imageUrl = isDefault ? undefined : pkgData!.image_url
+  // У дефолтной услуги картинки нет — пустая строка (PR #11), отсюда `||`.
+  const imageUrl = isDefault ? dsData?.image_url || undefined : pkgData!.image_url
   const items = isDefault ? [] : pkgData!.package_items ?? []
   const carFallback = isDefault ? '' : pkgData!.car_title
   const carLine = selectedCar
@@ -159,13 +190,27 @@ function BookServiceWizard() {
         ...(isDefault
           ? { default_service_page_id: packageId }
           : { service_package_id: packageId }),
-        preferred_datetime: localIsoToUtcIso(selectedSlot),
+        preferred_datetime: slotToIso(selectedSlot),
         service_station_id: selectedBranch.id,
         client_comment: comment.trim() || undefined,
       })
       setDone(true)
     } catch (err) {
-      setServerError(parseApiError(err, 'Не удалось создать запись.').general)
+      const parsed = parseApiError(err, 'Не удалось создать запись.')
+      const conflict = bookingConflict(parsed)
+      if (conflict) {
+        setServerError(conflict.message)
+        if (conflict.kind !== 'unavailable') {
+          setSelectedSlot(null)
+          if (conflict.kind === 'day_closed') setSelectedDate(null)
+          setStep('datetime')
+          if (conflict.kind === 'slot_taken') void slotsQuery.refetch()
+        }
+        return
+      }
+      // Ошибка могла прийти только по полю (а `general` тогда — общее
+      // «Ошибка валидации.»), поэтому сначала смотрим поле времени.
+      setServerError(parsed.fields.preferred_datetime ?? parsed.general)
     }
   }
 
@@ -187,7 +232,7 @@ function BookServiceWizard() {
               <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-brandBlue">
                 {selectedCar ? getCarTitle(selectedCar) : carFallback}
               </Text>{' '}
-              на выбранном филиале{selectedSlot ? `, ${formatDateTime(localIsoToUtcIso(selectedSlot))}` : ''}.
+              на выбранном филиале{slotIso ? `, ${formatDateTimeRange(slotIso, slotEndIso)}` : ''}.
             </Text>
             <View className="mt-8 w-full gap-3">
               <Button variant="primary" size="lg" fullWidth onPress={() => router.replace('/service-book')}>
@@ -203,7 +248,8 @@ function BookServiceWizard() {
                     Linking.openURL(
                       buildGoogleCalendarUrl({
                         title: `SCT Service: ${shortTitle}`,
-                        startIso: localIsoToUtcIso(selectedSlot),
+                        startIso: slotToIso(selectedSlot),
+                        durationMin: durationMin ?? 60,
                         location: selectedBranch
                           ? [selectedBranch.name, selectedBranch.city, selectedBranch.address]
                               .filter(Boolean)
@@ -285,9 +331,11 @@ function BookServiceWizard() {
               branchId={selectedBranch.id}
               selectedDate={selectedDate}
               selectedSlot={selectedSlot}
+              service={slotsService}
               onChange={(d, slot) => {
                 setSelectedDate(d)
                 setSelectedSlot(slot)
+                if (slot) setServerError(null)
               }}
             />
           ) : null}
@@ -295,10 +343,14 @@ function BookServiceWizard() {
             <ConfirmStep
               items={items}
               branch={selectedBranch}
-              slotIso={selectedSlot}
+              slotIso={slotToIso(selectedSlot)}
+              endIso={slotEndIso}
+              durationMin={durationMin}
               comment={comment}
               onCommentChange={setComment}
               note={isDefault ? price : undefined}
+              queueAck={queueAck}
+              onQueueAckChange={setQueueAck}
             />
           ) : null}
         </View>
@@ -332,6 +384,7 @@ function BookServiceWizard() {
               size="lg"
               fullWidth
               loading={createMut.isPending}
+              disabled={!queueAck}
               onPress={onSubmit}
             >
               {createMut.isPending ? 'Создаём запись…' : 'Подтвердить запись'}
@@ -365,16 +418,25 @@ function ConfirmStep({
   items,
   branch,
   slotIso,
+  endIso,
+  durationMin,
   comment,
   onCommentChange,
   note,
+  queueAck,
+  onQueueAckChange,
 }: {
   items: ClientPackageItem[]
   branch: ServiceStation
+  /** ISO начала (уже через slotToIso). */
   slotIso: string
+  endIso: string | null
+  durationMin: number | null
   comment: string
   onCommentChange: (v: string) => void
   note?: string
+  queueAck: boolean
+  onQueueAckChange: (v: boolean) => void
 }) {
   return (
     <View>
@@ -441,9 +503,19 @@ function ConfirmStep({
             Выбранное время
           </Text>
           <Text style={{ fontFamily: 'Inter_900Black' }} className="text-right text-sm text-brandBlue">
-            {formatDateTime(localIsoToUtcIso(slotIso))}
+            {formatDateTimeRange(slotIso, endIso)}
           </Text>
         </View>
+        {durationMin ? (
+          <View className="flex-row items-center justify-between gap-3 border-t border-borderLight px-5 py-4">
+            <Text style={{ fontFamily: 'Inter_900Black' }} className="text-[10px] uppercase tracking-widest text-textSecondary">
+              Длительность
+            </Text>
+            <Text style={{ fontFamily: 'Inter_700Bold' }} className="text-right text-sm text-textPrimary">
+              {formatDuration(durationMin)}
+            </Text>
+          </View>
+        ) : null}
       </Card>
 
       <View className="mt-4">
@@ -454,6 +526,22 @@ function ConfirmStep({
           placeholder="Комментарий к вашему визиту (необязательно)…"
         />
       </View>
+
+      <Pressable
+        onPress={() => onQueueAckChange(!queueAck)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: queueAck }}
+        className="mt-4 flex-row items-start gap-3 rounded-sct border border-borderLight bg-white p-4"
+      >
+        <Ionicons
+          name={queueAck ? 'checkbox' : 'square-outline'}
+          size={22}
+          color={queueAck ? '#1F5FAF' : '#9AA4B2'}
+        />
+        <Text style={{ fontFamily: 'Inter_500Medium' }} className="flex-1 text-sm text-textPrimary">
+          Понимаю, что на сервисе возможна живая очередь и время начала может немного сдвинуться.
+        </Text>
+      </Pressable>
     </View>
   )
 }

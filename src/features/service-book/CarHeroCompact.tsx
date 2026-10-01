@@ -20,6 +20,7 @@ import { Card } from '@/shared/ui/Card'
 import { SafeImage } from '@/shared/ui/SafeImage'
 import { useCarYear } from '@/features/garage/carYear'
 import type { ServiceBookCar } from './types'
+import { pickCarTitle } from '@/features/garage/lib'
 
 export function CarHeroCompact({ car }: { car: ServiceBookCar }) {
   const router = useRouter()
@@ -29,7 +30,7 @@ export function CarHeroCompact({ car }: { car: ServiceBookCar }) {
   // Полное название модификации — как в плашке на «Услугах», которую заказчик
   // и просил повторить («BMW X7 I (G07) Рестайлинг Внедорожник…»). Год в
   // заголовок не дублируем: он рядом, в отдельной чёрной рамке.
-  const title = (car.full_car_title || car.display_name).toUpperCase()
+  const title = pickCarTitle(car).toUpperCase()
 
   return (
     <Pressable onPress={() => router.push(`/garage/edit/${car.id}`)} className="active:opacity-90">

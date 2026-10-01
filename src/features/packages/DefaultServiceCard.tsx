@@ -6,6 +6,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { SafeImage } from '@/shared/ui/SafeImage'
 import type { ClientDefaultServicePage } from './types'
 
 export function DefaultServiceCard({ service }: { service: ClientDefaultServicePage }) {
@@ -17,9 +18,24 @@ export function DefaultServiceCard({ service }: { service: ClientDefaultServiceP
       onPress={() => router.push(`/services/default/${service.id}`)}
       className="rounded-sct border border-borderLight bg-white p-5 active:opacity-90"
     >
-      <View className="mb-4 h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-        <Ionicons name="calculator-outline" size={22} color="#1F5FAF" />
-      </View>
+      {/* Картинка услуги с бэк PR #11; нет её — пустая строка, оставляем иконку. */}
+      {service.image_url ? (
+        <View
+          style={{ aspectRatio: 2 }}
+          className="mb-4 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-50"
+        >
+          <SafeImage
+            uri={service.image_url}
+            resizeMode="contain"
+            className="h-full w-full"
+            fallback={<Ionicons name="calculator-outline" size={22} color="#1F5FAF" />}
+          />
+        </View>
+      ) : (
+        <View className="mb-4 h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+          <Ionicons name="calculator-outline" size={22} color="#1F5FAF" />
+        </View>
+      )}
       <Text
         style={{ fontFamily: 'Inter_900Black' }}
         numberOfLines={2}

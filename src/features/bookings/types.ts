@@ -92,6 +92,12 @@ export interface Booking {
   preferred_datetime: string | null
   scheduled_datetime: string | null
   final_datetime: string | null
+  /**
+   * Конец визита и длительность услуги (бэк PR #11). Бэк считает их сам по
+   * длительности категории. У записей, созданных до PR, — null.
+   */
+  scheduled_end_datetime?: string | null
+  duration_minutes?: number | null
   price_snapshot: string | null
   currency: string
   price: MoneyValue

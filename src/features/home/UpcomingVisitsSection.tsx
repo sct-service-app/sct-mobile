@@ -10,10 +10,10 @@
 import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useBookingsQuery } from '@/features/bookings/queries'
-import { splitBookings } from '@/features/bookings/lib'
+import { splitBookings, visitTimeRange } from '@/features/bookings/lib'
 import type { Booking } from '@/features/bookings/types'
 import { Card } from '@/shared/ui/Card'
-import { formatDateTime } from '@/shared/lib/format'
+import { formatDateTimeRange } from '@/shared/lib/format'
 
 export function UpcomingVisitsSection() {
   const router = useRouter()
@@ -56,7 +56,7 @@ function VisitRow({
   highlighted: boolean
   onPress: () => void
 }) {
-  const dt = booking.final_datetime ?? booking.scheduled_datetime ?? booking.preferred_datetime
+  const { start, end } = visitTimeRange(booking)
   const title =
     booking.service_data?.title ||
     booking.service_package_data?.title ||
@@ -77,7 +77,7 @@ function VisitRow({
           {title}
         </Text>
         <Text style={{ fontFamily: 'Inter_700Bold' }} className="mt-1 text-[11px] uppercase tracking-wide text-textSecondary">
-          {dt ? formatDateTime(dt) : '—'}
+          {formatDateTimeRange(start, end)}
           {booking.car?.title ? ` · ${booking.car.title}` : ''}
         </Text>
       </Card>

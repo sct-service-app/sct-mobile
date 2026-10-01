@@ -10,14 +10,16 @@ import { ru } from 'date-fns/locale'
 import { Card } from '@/shared/ui/Card'
 import { cn } from '@/shared/lib/cn'
 import type { Booking } from '@/features/bookings/types'
-import { isBookingCancelled } from '@/features/bookings/lib'
+import { isBookingCancelled, visitTimeRange } from '@/features/bookings/lib'
 
-function splitDateTime(iso: string | null) {
+function splitDateTime(iso: string | null, endIso: string | null) {
   if (!iso) return { time: '—', date: '—' }
   try {
     const d = parseISO(iso)
+    // Конец визита есть только у записей после бэк PR #11: «16:00–18:00».
+    const end = endIso ? parseISO(endIso) : null
     return {
-      time: format(d, 'HH:mm'),
+      time: end && end.getTime() > d.getTime() ? `${format(d, 'HH:mm')}–${format(end, 'HH:mm')}` : format(d, 'HH:mm'),
       date: format(d, 'd MMMM, EEEEEE', { locale: ru }).toUpperCase(),
     }
   } catch {
@@ -33,9 +35,8 @@ export function AppointmentRow({
   highlighted?: boolean
 }) {
   const router = useRouter()
-  const datetime =
-    appointment.final_datetime ?? appointment.scheduled_datetime ?? appointment.preferred_datetime
-  const { time, date } = splitDateTime(datetime)
+  const { start, end } = visitTimeRange(appointment)
+  const { time, date } = splitDateTime(start, end)
   const svc = appointment.service_data
   const isDefault = appointment.service_source_type === 'default_service_page'
   const title =
